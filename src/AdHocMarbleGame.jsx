@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Play, RotateCcw, Dice6 } from 'lucide-react'
+import { Play, RotateCcw, Dice6, TrendingUp } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const AdHocMarbleGame = () => {
   // Game configuration state
@@ -45,6 +46,34 @@ const AdHocMarbleGame = () => {
     setMarbles(newMarbles)
   }
 
+  // Custom tooltip for equity chart showing R multiples
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length && results) {
+      const drawData = results.drawHistory[label - 1] // label is draw number (1-based)
+      return (
+        <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg">
+          <p className="text-white font-medium">Draw #{label}</p>
+          {drawData && (
+            <>
+              <p className="text-blue-300">
+                Marble: <span style={{ color: drawData.marbleColor }}>{drawData.marbleName}</span>
+              </p>
+              <p className={`font-medium ${drawData.rMultiple > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                R Multiple: {drawData.rMultiple > 0 ? '+' : ''}{drawData.rMultiple}R
+              </p>
+            </>
+          )}
+          {payload.map((entry, index) => (
+            <p key={index} style={{ color: entry.color }}>
+              Equity: ${entry.value.toLocaleString()}
+            </p>
+          ))}
+        </div>
+      )
+    }
+    return null
+  }
+
   // Run simulation
   const runSimulation = () => {
     if (!isValidConfig) return
@@ -54,6 +83,8 @@ const AdHocMarbleGame = () => {
     // Simulate with a small delay for visual effect
     setTimeout(() => {
       const drawResults = []
+      const equityHistory = [startingEquity]
+      const drawHistory = []
       let currentEquity = startingEquity
       let totalRMultiples = 0
       let wins = 0
@@ -95,6 +126,7 @@ const AdHocMarbleGame = () => {
           maxDrawdown = currentDrawdown
         }
 
+        // Store draw result
         drawResults.push({
           draw: i + 1,
           marble: selectedMarble,
@@ -102,6 +134,26 @@ const AdHocMarbleGame = () => {
           resultAmount: resultAmount,
           equity: currentEquity,
           runningAvgR: totalRMultiples / (i + 1)
+        })
+
+        // Store equity history
+        equityHistory.push(currentEquity)
+
+        // Store draw history for chart tooltip
+        drawHistory.push({
+          drawNumber: i + 1,
+          marbleName: selectedMarble.name,
+          marbleColor: selectedMarble.color,
+          rMultiple: selectedMarble.multiplier
+        })
+      }
+
+      // Prepare chart data
+      const chartData = []
+      for (let i = 0; i <= numberOfDraws; i++) {
+        chartData.push({
+          draw: i,
+          Equity: equityHistory[i]
         })
       }
 
@@ -113,6 +165,9 @@ const AdHocMarbleGame = () => {
 
       setResults({
         drawResults,
+        drawHistory,
+        chartData,
+        equityHistory,
         finalEquity: currentEquity,
         totalReturn,
         returnPercentage,
@@ -133,7 +188,7 @@ const AdHocMarbleGame = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -326,6 +381,47 @@ const AdHocMarbleGame = () => {
                       </div>
                       <div className="text-sm text-muted-foreground">Win/Loss Count</div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Equity Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Equity Curve with R Multiples
+                  </CardTitle>
+                  <CardDescription>
+                    Hover over points to see R multiples for each draw
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={results.chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis 
+                          dataKey="draw" 
+                          stroke="#9CA3AF"
+                          label={{ value: 'Draw Number', position: 'insideBottom', offset: -5 }}
+                        />
+                        <YAxis 
+                          stroke="#9CA3AF"
+                          tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                          label={{ value: 'Equity ($)', angle: -90, position: 'insideLeft' }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="Equity" 
+                          stroke="#3B82F6" 
+                          strokeWidth={2}
+                          dot={{ fill: '#3B82F6', strokeWidth: 2, r: 3 }}
+                          activeDot={{ r: 5, stroke: '#3B82F6', strokeWidth: 2 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
