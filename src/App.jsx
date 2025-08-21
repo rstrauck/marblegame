@@ -37,6 +37,8 @@ import {
   User
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import AdHocMarbleGame from './AdHocMarbleGame'
+
 
 // Trading System Profiles
 const getTradingSystemProfiles = () => [
@@ -1873,7 +1875,7 @@ function App() {
 
         {/* Configuration Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-800/50">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-800/50">
             <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600">
               Overview
             </TabsTrigger>
@@ -1885,6 +1887,9 @@ function App() {
             </TabsTrigger>
             <TabsTrigger value="simulation" className="data-[state=active]:bg-blue-600">
               Simulation
+            </TabsTrigger>
+            <TabsTrigger value="ad-hoc" className="data-[state=active]:bg-blue-600">
+              Ad-Hoc
             </TabsTrigger>
           </TabsList>
 
@@ -1903,6 +1908,10 @@ function App() {
 
             <TabsContent value="simulation">
               {renderSimulationSetup()}
+            </TabsContent>
+
+            <TabsContent value="ad-hoc">
+              <AdHocMarbleGame />
             </TabsContent>
           </div>
         </Tabs>
