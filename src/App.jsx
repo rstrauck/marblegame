@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import AdHocMarbleGame from './AdHocMarbleGame'
+import MonteCarloMarbleGame from './MonteCarloMarbleGame'
 
 
 // Trading System Profiles
@@ -1875,21 +1876,24 @@ function App() {
 
         {/* Configuration Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-800/50">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600">
+          <TabsList className="grid w-full grid-cols-6 bg-slate-800/50">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 text-white">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="marbles" className="data-[state=active]:bg-blue-600">
+            <TabsTrigger value="marbles" className="data-[state=active]:bg-blue-600 text-white">
               Marbles
             </TabsTrigger>
-            <TabsTrigger value="players" className="data-[state=active]:bg-blue-600">
+            <TabsTrigger value="players" className="data-[state=active]:bg-blue-600 text-white">
               Players
             </TabsTrigger>
-            <TabsTrigger value="simulation" className="data-[state=active]:bg-blue-600">
+            <TabsTrigger value="simulation" className="data-[state=active]:bg-blue-600 text-white">
               Simulation
             </TabsTrigger>
-            <TabsTrigger value="ad-hoc" className="data-[state=active]:bg-blue-600">
+            <TabsTrigger value="ad-hoc" className="data-[state=active]:bg-blue-600 text-white">
               Ad-Hoc
+            </TabsTrigger>
+            <TabsTrigger value="montecarlo" className="data-[state=active]:bg-blue-600 text-white">
+              Montecarlo
             </TabsTrigger>
           </TabsList>
 
@@ -1912,6 +1916,10 @@ function App() {
 
             <TabsContent value="ad-hoc">
               <AdHocMarbleGame />
+            </TabsContent>
+
+            <TabsContent value="montecarlo">
+              <MonteCarloMarbleGame />
             </TabsContent>
           </div>
         </Tabs>
