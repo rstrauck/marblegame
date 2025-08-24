@@ -1,117 +1,107 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { Play, RotateCcw, BarChart3, TrendingUp, Target, BookOpen, ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const MonteCarloMarbleGame = () => {
-  // Game configuration state
+  // Marble configuration state
   const [marbles, setMarbles] = useState([
-    { name: 'Blue', color: '#3B82F6', probability: 20, multiplier: 1 },
-    { name: 'Green', color: '#10B981', probability: 15, multiplier: 3 },
-    { name: 'Silver', color: '#6B7280', probability: 10, multiplier: 4 },
-    { name: 'Pearl', color: '#F3F4F6', probability: 5, multiplier: 7 },
-    { name: 'Orange', color: '#F97316', probability: 25, multiplier: -1 },
-    { name: 'Red', color: '#EF4444', probability: 15, multiplier: -2 },
-    { name: 'Black', color: '#1F2937', probability: 10, multiplier: -4 }
+    { name: 'Blue', probability: 0.20, rMultiple: 1, color: '#3B82F6' },
+    { name: 'Green', probability: 0.15, rMultiple: 3, color: '#10B981' },
+    { name: 'Silver', probability: 0.10, rMultiple: 4, color: '#6B7280' },
+    { name: 'Pearl', probability: 0.05, rMultiple: 7, color: '#F3F4F6' },
+    { name: 'Orange', probability: 0.25, rMultiple: -1, color: '#F97316' },
+    { name: 'Red', probability: 0.15, rMultiple: -2, color: '#EF4444' },
+    { name: 'Black', probability: 0.10, rMultiple: -4, color: '#1F2937' }
   ])
 
   // Game settings
   const [startingEquity, setStartingEquity] = useState(10000)
-  const [riskPercentage, setRiskPercentage] = useState(10)
-  const [numberOfDraws, setNumberOfDraws] = useState(20)
+  const [riskPercentage, setRiskPercentage] = useState(2)
+  const [numberOfDraws, setNumberOfDraws] = useState(100)
   const [numberOfSimulations, setNumberOfSimulations] = useState(1000)
+  const [histogramBuckets, setHistogramBuckets] = useState(20) // New: configurable buckets
 
-  // Results state
-  const [results, setResults] = useState(null)
+  // Simulation state
   const [isRunning, setIsRunning] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [results, setResults] = useState(null)
 
-  // Explanation state
-  const [explanationOpen, setExplanationOpen] = useState(false)
-
-  // Validation
-  const totalProbability = marbles.reduce((sum, marble) => sum + marble.probability, 0)
-  const isValidConfig = totalProbability === 100 && numberOfDraws > 0 && riskPercentage > 0 && numberOfSimulations > 0
-
-  // Calculate theoretical expectancy
-  const theoreticalExpectancy = marbles.reduce((sum, marble) => 
-    sum + (marble.probability / 100) * marble.multiplier, 0
-  )
-
-  // Update marble property
+  // Update marble configuration
   const updateMarble = (index, field, value) => {
     const newMarbles = [...marbles]
-    newMarbles[index][field] = field === 'probability' || field === 'multiplier' ? 
-      parseFloat(value) || 0 : value
+    newMarbles[index][field] = field === 'probability' || field === 'rMultiple' ? parseFloat(value) || 0 : value
     setMarbles(newMarbles)
   }
 
-  // Run single simulation
+  // Calculate total probability
+  const totalProbability = marbles.reduce((sum, marble) => sum + marble.probability, 0)
+
+  // Calculate theoretical expectancy
+  const theoreticalExpectancy = marbles.reduce((sum, marble) => sum + (marble.probability * marble.rMultiple), 0)
+
+  // Validate configuration
+  const isValidConfig = Math.abs(totalProbability - 1.0) < 0.001
+
+  // Single simulation function
   const runSingleSimulation = () => {
-    let currentEquity = startingEquity
-    let totalRMultiples = 0
-    let wins = 0
-    let losses = 0
-    let maxEquity = startingEquity
+    let equity = startingEquity
     let maxDrawdown = 0
-    const equityHistory = [startingEquity]
+    let peak = startingEquity
+    let wins = 0
+    let totalRMultiples = 0
+    const equityHistory = [equity]
 
     // Create cumulative probability ranges
-    const ranges = []
+    const cumulativeProbs = []
     let cumulative = 0
     marbles.forEach(marble => {
-      ranges.push({
+      cumulativeProbs.push({
         ...marble,
-        start: cumulative / 100,
-        end: (cumulative + marble.probability) / 100
+        start: cumulative,
+        end: cumulative + marble.probability
       })
       cumulative += marble.probability
     })
 
-    // Run draws
-    for (let i = 0; i < numberOfDraws; i++) {
+    for (let draw = 0; draw < numberOfDraws; draw++) {
       const random = Math.random()
-      const selectedMarble = ranges.find(range => random >= range.start && random < range.end)
       
-      const riskAmount = currentEquity * (riskPercentage / 100)
-      const resultAmount = riskAmount * selectedMarble.multiplier
-      currentEquity += resultAmount
-      
-      totalRMultiples += selectedMarble.multiplier
-      if (selectedMarble.multiplier > 0) wins++
-      else losses++
+      // Find which marble was drawn
+      const drawnMarble = cumulativeProbs.find(marble => 
+        random >= marble.start && random < marble.end
+      )
 
-      // Track max drawdown
-      if (currentEquity > maxEquity) {
-        maxEquity = currentEquity
-      }
-      const currentDrawdown = ((maxEquity - currentEquity) / maxEquity) * 100
-      if (currentDrawdown > maxDrawdown) {
-        maxDrawdown = currentDrawdown
-      }
+      if (drawnMarble) {
+        const riskAmount = equity * (riskPercentage / 100)
+        const result = riskAmount * drawnMarble.rMultiple
+        equity += result
+        totalRMultiples += drawnMarble.rMultiple
 
-      equityHistory.push(currentEquity)
+        if (drawnMarble.rMultiple > 0) wins++
+
+        // Track peak and drawdown
+        if (equity > peak) peak = equity
+        const currentDrawdown = ((peak - equity) / peak) * 100
+        if (currentDrawdown > maxDrawdown) maxDrawdown = currentDrawdown
+
+        equityHistory.push(equity)
+      }
     }
 
-    const totalReturn = currentEquity - startingEquity
-    const returnPercentage = (totalReturn / startingEquity) * 100
-    const avgRMultiple = totalRMultiples / numberOfDraws
+    const finalReturn = ((equity - startingEquity) / startingEquity) * 100
     const winRate = (wins / numberOfDraws) * 100
+    const avgRMultiple = totalRMultiples / numberOfDraws
 
     return {
-      finalEquity: currentEquity,
-      totalReturn,
-      returnPercentage,
-      avgRMultiple,
-      winRate,
+      finalEquity: equity,
+      finalReturn,
       maxDrawdown,
-      wins,
-      losses,
+      winRate,
+      avgRMultiple,
       equityHistory
     }
   }
@@ -122,156 +112,185 @@ const MonteCarloMarbleGame = () => {
 
     setIsRunning(true)
     setProgress(0)
+    setResults(null)
 
-    // Run simulations in batches to allow UI updates
-    const batchSize = 50
-    const allResults = []
-    
-    for (let batch = 0; batch < Math.ceil(numberOfSimulations / batchSize); batch++) {
+    const simulationResults = []
+    const batchSize = 100
+    const totalBatches = Math.ceil(numberOfSimulations / batchSize)
+
+    for (let batch = 0; batch < totalBatches; batch++) {
       const batchResults = []
-      const batchStart = batch * batchSize
-      const batchEnd = Math.min(batchStart + batchSize, numberOfSimulations)
-      
-      for (let i = batchStart; i < batchEnd; i++) {
+      const currentBatchSize = Math.min(batchSize, numberOfSimulations - batch * batchSize)
+
+      for (let i = 0; i < currentBatchSize; i++) {
         batchResults.push(runSingleSimulation())
       }
-      
-      allResults.push(...batchResults)
-      setProgress((batchEnd / numberOfSimulations) * 100)
-      
+
+      simulationResults.push(...batchResults)
+      setProgress(((batch + 1) / totalBatches) * 100)
+
       // Allow UI to update
       await new Promise(resolve => setTimeout(resolve, 10))
     }
 
     // Calculate statistics
-    const finalEquities = allResults.map(r => r.finalEquity)
-    const returnPercentages = allResults.map(r => r.returnPercentage)
-    const avgRMultiples = allResults.map(r => r.avgRMultiple)
-    const maxDrawdowns = allResults.map(r => r.maxDrawdown)
-    const winRates = allResults.map(r => r.winRate)
+    const returns = simulationResults.map(r => r.finalReturn)
+    const drawdowns = simulationResults.map(r => r.maxDrawdown)
+    const finalEquities = simulationResults.map(r => r.finalEquity)
 
-    // Sort for percentiles
-    const sortedReturns = [...returnPercentages].sort((a, b) => a - b)
-    const sortedEquities = [...finalEquities].sort((a, b) => a - b)
-    const sortedDrawdowns = [...maxDrawdowns].sort((a, b) => a - b)
+    returns.sort((a, b) => a - b)
+    drawdowns.sort((a, b) => a - b)
+    finalEquities.sort((a, b) => a - b)
 
-    // Calculate percentiles
     const getPercentile = (arr, percentile) => {
       const index = Math.floor((percentile / 100) * arr.length)
       return arr[Math.min(index, arr.length - 1)]
     }
 
-    // Calculate statistics
-    const mean = (arr) => arr.reduce((sum, val) => sum + val, 0) / arr.length
-    const stdDev = (arr) => {
-      const avg = mean(arr)
-      const squareDiffs = arr.map(val => Math.pow(val - avg, 2))
-      return Math.sqrt(mean(squareDiffs))
-    }
+    const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length
+    const meanDrawdown = drawdowns.reduce((sum, d) => sum + d, 0) / drawdowns.length
+    const profitableSimulations = returns.filter(r => r > 0).length
+    const probabilityOfProfit = (profitableSimulations / numberOfSimulations) * 100
 
-    // Probability of profit
-    const profitableRuns = allResults.filter(r => r.totalReturn > 0).length
-    const probabilityOfProfit = (profitableRuns / numberOfSimulations) * 100
+    // Calculate return volatility
+    const returnVariance = returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / returns.length
+    const returnVolatility = Math.sqrt(returnVariance)
 
-    // Create distribution data for histogram with improved range display
-    const createHistogramData = (data, bins = 20) => {
-      const min = Math.min(...data)
-      const max = Math.max(...data)
-      const binSize = (max - min) / bins
-      const histogram = Array(bins).fill(0).map((_, i) => {
-        const rangeStart = min + i * binSize
-        const rangeEnd = min + (i + 1) * binSize
-        return {
-          range: `${rangeStart.toFixed(1)}%`, // Keep this for X-axis display
-          rangeDisplay: `${rangeStart.toFixed(1)}% to ${rangeEnd.toFixed(1)}%`, // New field for tooltip
-          count: 0,
-          rangeStart: rangeStart,
-          rangeEnd: rangeEnd
-        }
-      })
-
-      data.forEach(value => {
-        const binIndex = Math.min(Math.floor((value - min) / binSize), bins - 1)
-        histogram[binIndex].count++
-      })
-
-      return histogram
-    }
-
-    // Create equity curve data (average of all simulations)
-    const equityCurveData = []
-    for (let draw = 0; draw <= numberOfDraws; draw++) {
-      const equitiesAtDraw = allResults.map(r => r.equityHistory[draw])
-      const avgEquity = mean(equitiesAtDraw)
-      const p10 = getPercentile([...equitiesAtDraw].sort((a, b) => a - b), 10)
-      const p90 = getPercentile([...equitiesAtDraw].sort((a, b) => a - b), 90)
+    // Create histogram data with configurable buckets
+    const minReturn = Math.min(...returns)
+    const maxReturn = Math.max(...returns)
+    const binWidth = (maxReturn - minReturn) / histogramBuckets
+    
+    const histogram = []
+    for (let i = 0; i < histogramBuckets; i++) {
+      const binStart = minReturn + i * binWidth
+      const binEnd = binStart + binWidth
+      const binCenter = binStart + binWidth / 2
+      const count = returns.filter(r => r >= binStart && r < binEnd).length
       
-      equityCurveData.push({
-        draw,
-        avgEquity,
-        p10,
-        p90
+      histogram.push({
+        range: `${Math.round(binCenter)}%`, // Rounded for display
+        rangeDisplay: `${binStart.toFixed(1)}% to ${binEnd.toFixed(1)}%`,
+        rangeStart: binStart,
+        rangeEnd: binEnd,
+        frequency: count,
+        percentage: (count / numberOfSimulations) * 100
       })
     }
+
+    // Create equity curve data with confidence bands
+    const maxDrawsLength = Math.max(...simulationResults.map(r => r.equityHistory.length))
+    const equityCurveData = []
+    
+    for (let draw = 0; draw < maxDrawsLength; draw++) {
+      const equitiesAtDraw = simulationResults
+        .map(r => r.equityHistory[draw])
+        .filter(e => e !== undefined)
+        .sort((a, b) => a - b)
+
+      if (equitiesAtDraw.length > 0) {
+        equityCurveData.push({
+          draw,
+          average: equitiesAtDraw.reduce((sum, e) => sum + e, 0) / equitiesAtDraw.length,
+          p10: getPercentile(equitiesAtDraw, 10),
+          p90: getPercentile(equitiesAtDraw, 90)
+        })
+      }
+    }
+
+    // Create scatterplot data using LineChart approach
+    const scatterData = simulationResults.map((result, index) => ({
+      id: index,
+      simulation: index + 1,
+      returnPercent: result.finalReturn,
+      maxDrawdown: result.maxDrawdown,
+      finalEquity: result.finalEquity,
+      winRate: result.winRate
+    }))
 
     setResults({
-      simulations: allResults,
-      statistics: {
-        meanReturn: mean(returnPercentages),
-        stdDevReturn: stdDev(returnPercentages),
-        meanEquity: mean(finalEquities),
-        meanRMultiple: mean(avgRMultiples),
-        meanWinRate: mean(winRates),
-        meanMaxDrawdown: mean(maxDrawdowns),
-        probabilityOfProfit,
-        percentiles: {
-          return: {
-            p5: getPercentile(sortedReturns, 5),
-            p10: getPercentile(sortedReturns, 10),
-            p25: getPercentile(sortedReturns, 25),
-            p50: getPercentile(sortedReturns, 50),
-            p75: getPercentile(sortedReturns, 75),
-            p90: getPercentile(sortedReturns, 90),
-            p95: getPercentile(sortedReturns, 95)
-          },
-          equity: {
-            p5: getPercentile(sortedEquities, 5),
-            p10: getPercentile(sortedEquities, 10),
-            p25: getPercentile(sortedEquities, 25),
-            p50: getPercentile(sortedEquities, 50),
-            p75: getPercentile(sortedEquities, 75),
-            p90: getPercentile(sortedEquities, 90),
-            p95: getPercentile(sortedEquities, 95)
-          },
-          drawdown: {
-            p5: getPercentile(sortedDrawdowns, 5),
-            p10: getPercentile(sortedDrawdowns, 10),
-            p25: getPercentile(sortedDrawdowns, 25),
-            p50: getPercentile(sortedDrawdowns, 50),
-            p75: getPercentile(sortedDrawdowns, 75),
-            p90: getPercentile(sortedDrawdowns, 90),
-            p95: getPercentile(sortedDrawdowns, 95)
-          }
+      summary: {
+        meanReturn: meanReturn.toFixed(2),
+        probabilityOfProfit: probabilityOfProfit.toFixed(1),
+        returnVolatility: returnVolatility.toFixed(2),
+        meanMaxDrawdown: meanDrawdown.toFixed(2)
+      },
+      percentiles: {
+        returns: {
+          p5: getPercentile(returns, 5).toFixed(2),
+          p10: getPercentile(returns, 10).toFixed(2),
+          p25: getPercentile(returns, 25).toFixed(2),
+          p50: getPercentile(returns, 50).toFixed(2),
+          p75: getPercentile(returns, 75).toFixed(2),
+          p90: getPercentile(returns, 90).toFixed(2),
+          p95: getPercentile(returns, 95).toFixed(2)
+        },
+        finalEquity: {
+          p5: getPercentile(finalEquities, 5).toFixed(0),
+          p10: getPercentile(finalEquities, 10).toFixed(0),
+          p25: getPercentile(finalEquities, 25).toFixed(0),
+          p50: getPercentile(finalEquities, 50).toFixed(0),
+          p75: getPercentile(finalEquities, 75).toFixed(0),
+          p90: getPercentile(finalEquities, 90).toFixed(0),
+          p95: getPercentile(finalEquities, 95).toFixed(0)
+        },
+        drawdowns: {
+          p5: getPercentile(drawdowns, 5).toFixed(2),
+          p10: getPercentile(drawdowns, 10).toFixed(2),
+          p25: getPercentile(drawdowns, 25).toFixed(2),
+          p50: getPercentile(drawdowns, 50).toFixed(2),
+          p75: getPercentile(drawdowns, 75).toFixed(2),
+          p90: getPercentile(drawdowns, 90).toFixed(2),
+          p95: getPercentile(drawdowns, 95).toFixed(2)
         }
       },
-      histogramData: createHistogramData(returnPercentages),
+      histogram,
       equityCurveData,
-      numberOfSimulations,
-      numberOfDraws
+      scatterData,
+      rawResults: simulationResults
     })
 
     setIsRunning(false)
-    setProgress(0)
+    setProgress(100)
   }
 
-  // Reset simulation
-  const resetSimulation = () => {
-    setResults(null)
-    setProgress(0)
+  // Custom tooltip for histogram
+  const CustomHistogramTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload
+      return (
+        <div className="bg-white p-3 border rounded shadow-lg">
+          <p className="font-semibold">Return Range: {data.rangeDisplay}</p>
+          <p className="text-blue-600">Frequency: {data.frequency} simulations</p>
+          <p className="text-gray-600">{data.percentage.toFixed(1)}% of all simulations</p>
+        </div>
+      )
+    }
+    return null
   }
 
-  // Simple progress bar component (in case Progress from shadcn/ui is not available)
-  const SimpleProgress = ({ value }) => (
+  // Custom tooltip for scatterplot (using LineChart with dots only)
+  const CustomScatterTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload
+      return (
+        <div className="bg-white p-3 border rounded shadow-lg">
+          <p className="font-semibold">Simulation #{data.simulation}</p>
+          <p className="text-blue-600">Return: {data.returnPercent.toFixed(2)}%</p>
+          <p className="text-red-600">Max Drawdown: {data.maxDrawdown.toFixed(2)}%</p>
+          <p className="text-gray-600">Final Equity: ${data.finalEquity.toFixed(0)}</p>
+          <p className="text-green-600">Win Rate: {data.winRate.toFixed(1)}%</p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  // Custom formatters for scatterplot axes - IMPROVED
+  const formatPercentage = (value) => `${Math.round(value)}%`
+
+  // Simple progress bar component
+  const ProgressBar = ({ value }) => (
     <div className="w-full bg-gray-200 rounded-full h-2">
       <div 
         className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
@@ -280,615 +299,583 @@ const MonteCarloMarbleGame = () => {
     </div>
   )
 
-  // Custom tooltip for histogram
-  const CustomHistogramTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload
-      return (
-        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-          <p className="font-medium">{`Return Range: ${data.rangeDisplay}`}</p>
-          <p className="text-blue-600">{`Frequency: ${payload[0].value} simulations`}</p>
-          <p className="text-gray-600 text-sm">{`${((payload[0].value / results.numberOfSimulations) * 100).toFixed(1)}% of all simulations`}</p>
-        </div>
-      )
-    }
-    return null
-  }
-
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
-            Monte Carlo Marble Simulation
-          </CardTitle>
-          <CardDescription>
-            Run thousands of simulations to analyze probability distributions and confidence intervals
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
+    <div className="space-y-6">
+      {/* Configuration Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Configuration Panel */}
-        <div className="space-y-6">
-          {/* Marble Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Marble Configuration</CardTitle>
-              <CardDescription>
-                Configure marble probabilities and R multiples (must sum to 100%)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        {/* Marble Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Marble Configuration</CardTitle>
+            <CardDescription>Configure probabilities and R multiples for each marble</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
               {marbles.map((marble, index) => (
                 <div key={marble.name} className="grid grid-cols-4 gap-2 items-center">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center space-x-2">
                     <div 
                       className="w-4 h-4 rounded-full border"
                       style={{ backgroundColor: marble.color }}
                     />
                     <span className="text-sm font-medium">{marble.name}</span>
                   </div>
-                  <div>
-                    <Input
-                      type="number"
-                      value={marble.probability}
-                      onChange={(e) => updateMarble(index, 'probability', e.target.value)}
-                      placeholder="Prob %"
-                      className="h-8"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      type="number"
-                      value={marble.multiplier}
-                      onChange={(e) => updateMarble(index, 'multiplier', e.target.value)}
-                      placeholder="R Multiple"
-                      className="h-8"
-                      step="0.1"
-                    />
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {marble.multiplier > 0 ? '+' : ''}{marble.multiplier}R
-                  </div>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={marble.probability}
+                    onChange={(e) => updateMarble(index, 'probability', e.target.value)}
+                    className="text-sm"
+                  />
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={marble.rMultiple}
+                    onChange={(e) => updateMarble(index, 'rMultiple', e.target.value)}
+                    className="text-sm"
+                  />
+                  <span className="text-xs text-gray-500">
+                    {(marble.probability * 100).toFixed(1)}%
+                  </span>
                 </div>
               ))}
               
-              <Separator />
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Total Probability:</span>
-                <Badge variant={totalProbability === 100 ? "default" : "destructive"}>
-                  {totalProbability}%
-                </Badge>
+              <div className="pt-4 border-t space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Total Probability:</span>
+                  <Badge variant={isValidConfig ? "default" : "destructive"}>
+                    {(totalProbability * 100).toFixed(1)}%
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Theoretical Expectancy:</span>
+                  <Badge variant={theoreticalExpectancy > 0 ? "default" : "destructive"}>
+                    {theoreticalExpectancy > 0 ? '+' : ''}{theoreticalExpectancy.toFixed(3)}R
+                  </Badge>
+                </div>
               </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Theoretical Expectancy:</span>
-                <Badge variant={theoreticalExpectancy > 0 ? "default" : "destructive"}>
-                  {theoreticalExpectancy > 0 ? '+' : ''}{theoreticalExpectancy.toFixed(3)}R
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Monte Carlo Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Monte Carlo Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="equity">Starting Equity ($)</Label>
-                  <Input
-                    id="equity"
-                    type="number"
-                    value={startingEquity}
-                    onChange={(e) => setStartingEquity(parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="risk">Risk Percentage (%)</Label>
-                  <Input
-                    id="risk"
-                    type="number"
-                    value={riskPercentage}
-                    onChange={(e) => setRiskPercentage(parseFloat(e.target.value) || 0)}
-                    step="0.1"
-                  />
-                </div>
+        {/* Game Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Simulation Settings</CardTitle>
+            <CardDescription>Configure the Monte Carlo simulation parameters</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="startingEquity">Starting Equity ($)</Label>
+                <Input
+                  id="startingEquity"
+                  type="number"
+                  value={startingEquity}
+                  onChange={(e) => setStartingEquity(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="riskPercentage">Risk per Draw (%)</Label>
+                <Input
+                  id="riskPercentage"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  max="100"
+                  value={riskPercentage}
+                  onChange={(e) => setRiskPercentage(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="numberOfDraws">Number of Draws per Simulation</Label>
+                <Input
+                  id="numberOfDraws"
+                  type="number"
+                  min="10"
+                  max="1000"
+                  value={numberOfDraws}
+                  onChange={(e) => setNumberOfDraws(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="numberOfSimulations">Number of Simulations</Label>
+                <Input
+                  id="numberOfSimulations"
+                  type="number"
+                  min="100"
+                  max="10000"
+                  value={numberOfSimulations}
+                  onChange={(e) => setNumberOfSimulations(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="histogramBuckets">Histogram Buckets</Label>
+                <Input
+                  id="histogramBuckets"
+                  type="number"
+                  min="5"
+                  max="50"
+                  value={histogramBuckets}
+                  onChange={(e) => setHistogramBuckets(parseInt(e.target.value) || 20)}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Number of buckets for return distribution (5-50)
+                </p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="draws">Draws per Simulation</Label>
-                  <Input
-                    id="draws"
-                    type="number"
-                    value={numberOfDraws}
-                    onChange={(e) => setNumberOfDraws(parseInt(e.target.value) || 0)}
-                    min="1"
-                    max="1000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="simulations">Number of Simulations</Label>
-                  <Input
-                    id="simulations"
-                    type="number"
-                    value={numberOfSimulations}
-                    onChange={(e) => setNumberOfSimulations(parseInt(e.target.value) || 0)}
-                    min="100"
-                    max="10000"
-                  />
-                </div>
-              </div>
-
               {isRunning && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Progress</span>
                     <span>{progress.toFixed(1)}%</span>
                   </div>
-                  <SimpleProgress value={progress} />
+                  <ProgressBar value={progress} />
                 </div>
               )}
+              
+              <Button 
+                onClick={runMonteCarloSimulation}
+                disabled={!isValidConfig || isRunning}
+                className="w-full"
+              >
+                {isRunning ? 'Running Simulation...' : 'Start Monte Carlo Simulation'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-              <div className="flex gap-2">
-                <Button 
-                  onClick={runMonteCarloSimulation} 
-                  disabled={!isValidConfig || isRunning}
-                  className="flex-1"
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  {isRunning ? 'Running...' : 'Run Monte Carlo'}
-                </Button>
-                
-                {results && (
-                  <Button onClick={resetSimulation} variant="outline">
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset
-                  </Button>
-                )}
+      {/* Results Section */}
+      {results && (
+        <div className="space-y-6">
+          {/* Summary Statistics */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Monte Carlo Results Summary</CardTitle>
+              <CardDescription>
+                Based on {numberOfSimulations.toLocaleString()} simulations of {numberOfDraws} draws each
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{results.summary.meanReturn}%</div>
+                  <div className="text-sm text-gray-600">Mean Return</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{results.summary.probabilityOfProfit}%</div>
+                  <div className="text-sm text-gray-600">Probability of Profit</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">{results.summary.returnVolatility}%</div>
+                  <div className="text-sm text-gray-600">Return Volatility</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{results.summary.meanMaxDrawdown}%</div>
+                  <div className="text-sm text-gray-600">Mean Max Drawdown</div>
+                </div>
               </div>
-
-              {!isValidConfig && (
-                <div className="text-sm text-destructive">
-                  {totalProbability !== 100 && "Probabilities must sum to 100%. "}
-                  {numberOfDraws <= 0 && "Number of draws must be greater than 0. "}
-                  {riskPercentage <= 0 && "Risk percentage must be greater than 0. "}
-                  {numberOfSimulations <= 0 && "Number of simulations must be greater than 0."}
-                </div>
-              )}
             </CardContent>
           </Card>
-        </div>
 
-        {/* Results Panel */}
-        <div className="space-y-6">
-          {results ? (
-            <>
-              {/* Summary Statistics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monte Carlo Results</CardTitle>
-                  <CardDescription>
-                    {results.numberOfSimulations.toLocaleString()} simulations of {results.numberOfDraws} draws each
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold ${results.statistics.meanReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {results.statistics.meanReturn >= 0 ? '+' : ''}{results.statistics.meanReturn.toFixed(1)}%
-                      </div>
-                      <div className="text-sm text-muted-foreground">Mean Return</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {results.statistics.probabilityOfProfit.toFixed(1)}%
-                      </div>
-                      <div className="text-sm text-muted-foreground">Probability of Profit</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">
-                        {results.statistics.stdDevReturn.toFixed(1)}%
-                      </div>
-                      <div className="text-sm text-muted-foreground">Return Volatility</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {results.statistics.meanMaxDrawdown.toFixed(1)}%
-                      </div>
-                      <div className="text-sm text-muted-foreground">Mean Max Drawdown</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Return Distribution Histogram */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Return Distribution</CardTitle>
+              <CardDescription>
+                Frequency distribution of returns across all simulations ({histogramBuckets} buckets)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={results.histogram}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="range" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis />
+                    <Tooltip content={<CustomHistogramTooltip />} />
+                    <Bar dataKey="frequency" fill="#3B82F6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* Confidence Intervals */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Confidence Intervals
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Return Percentiles</h4>
-                    <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div>5%: {results.statistics.percentiles.return.p5.toFixed(1)}%</div>
-                      <div>25%: {results.statistics.percentiles.return.p25.toFixed(1)}%</div>
-                      <div>50%: {results.statistics.percentiles.return.p50.toFixed(1)}%</div>
-                      <div>75%: {results.statistics.percentiles.return.p75.toFixed(1)}%</div>
-                      <div>90%: {results.statistics.percentiles.return.p90.toFixed(1)}%</div>
-                      <div>95%: {results.statistics.percentiles.return.p95.toFixed(1)}%</div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <h4 className="font-medium mb-2">Final Equity Percentiles</h4>
-                    <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div>5%: ${results.statistics.percentiles.equity.p5.toLocaleString()}</div>
-                      <div>25%: ${results.statistics.percentiles.equity.p25.toLocaleString()}</div>
-                      <div>50%: ${results.statistics.percentiles.equity.p50.toLocaleString()}</div>
-                      <div>75%: ${results.statistics.percentiles.equity.p75.toLocaleString()}</div>
-                      <div>90%: ${results.statistics.percentiles.equity.p90.toLocaleString()}</div>
-                      <div>95%: ${results.statistics.percentiles.equity.p95.toLocaleString()}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Return vs Max Drawdown Scatterplot - ENHANCED VERSION */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Return vs Max Drawdown Analysis</CardTitle>
+              <CardDescription>
+                Risk-return relationship across all simulations. Each dot represents one complete simulation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={results.scatterData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="returnPercent" 
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={formatPercentage}
+                      label={{ value: 'Return %', position: 'insideBottom', offset: -10 }}
+                    />
+                    <YAxis 
+                      dataKey="maxDrawdown"
+                      type="number"
+                      domain={[0, 'dataMax']}
+                      tickFormatter={formatPercentage}
+                      label={{ value: 'Max Drawdown %', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip content={<CustomScatterTooltip />} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="maxDrawdown" 
+                      stroke="transparent"
+                      strokeWidth={0}
+                      dot={{ fill: '#3B82F6', strokeWidth: 0, r: 3, fillOpacity: 0.6 }}
+                      line={false}
+                      connectNulls={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 text-sm text-gray-600">
+                <p><strong>Interpretation:</strong></p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li><strong>Bottom-Right:</strong> High return, low drawdown (ideal outcomes)</li>
+                  <li><strong>Top-Right:</strong> High return, high drawdown (risky but profitable)</li>
+                  <li><strong>Bottom-Left:</strong> Low/negative return, low drawdown (conservative losses)</li>
+                  <li><strong>Top-Left:</strong> Negative return, high drawdown (worst outcomes)</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* Return Distribution */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Return Distribution</CardTitle>
-                  <CardDescription>
-                    Histogram of return percentages across all simulations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={results.histogramData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis 
-                          dataKey="range" 
-                          stroke="#9CA3AF"
-                          angle={-45}
-                          textAnchor="end"
-                          height={60}
-                        />
-                        <YAxis stroke="#9CA3AF" />
-                        <Tooltip content={<CustomHistogramTooltip />} />
-                        <Bar dataKey="count" fill="#3B82F6" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Equity Curve with Confidence Bands */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Equity Progression with Confidence Bands</CardTitle>
+              <CardDescription>Average equity curve with 10th and 90th percentile bands</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={results.equityCurveData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="draw" />
+                    <YAxis 
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                    />
+                    <Tooltip 
+                      formatter={(value, name) => [`$${value.toFixed(0)}`, name]}
+                      labelFormatter={(label) => `Draw ${label}`}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="p10" 
+                      stroke="#EF4444" 
+                      strokeDasharray="5 5"
+                      name="10th Percentile (Worst 10%)"
+                      dot={false}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="average" 
+                      stroke="#3B82F6" 
+                      strokeWidth={2}
+                      name="Average"
+                      dot={false}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="p90" 
+                      stroke="#10B981" 
+                      strokeDasharray="5 5"
+                      name="90th Percentile (Best 10%)"
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* Equity Curve with Confidence Bands */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Average Equity Curve with Confidence Bands
-                  </CardTitle>
-                  <CardDescription>
-                    Average equity progression with 10th-90th percentile bands
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={results.equityCurveData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis 
-                          dataKey="draw" 
-                          stroke="#9CA3AF"
-                          label={{ value: 'Draw Number', position: 'insideBottom', offset: -5 }}
-                        />
-                        <YAxis 
-                          stroke="#9CA3AF"
-                          tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                          label={{ value: 'Equity ($)', angle: -90, position: 'insideLeft' }}
-                        />
-                        <Tooltip 
-                          formatter={(value, name) => [`$${value.toLocaleString()}`, name]}
-                          labelFormatter={(label) => `Draw: ${label}`}
-                        />
-                        <Legend />
-                        <Line 
-                          type="monotone" 
-                          dataKey="p10" 
-                          stroke="#EF4444" 
-                          strokeWidth={1}
-                          strokeDasharray="5 5"
-                          dot={false}
-                          name="10th Percentile"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="avgEquity" 
-                          stroke="#3B82F6" 
-                          strokeWidth={3}
-                          dot={false}
-                          name="Average"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="p90" 
-                          stroke="#10B981" 
-                          strokeWidth={1}
-                          strokeDasharray="5 5"
-                          dot={false}
-                          name="90th Percentile"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          ) : (
+          {/* Percentile Tables */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
-              <CardContent className="flex items-center justify-center h-64">
-                <div className="text-center text-muted-foreground">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Configure your Monte Carlo simulation and click "Run Monte Carlo" to see results</p>
+              <CardHeader>
+                <CardTitle>Return Percentiles</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {Object.entries(results.percentiles.returns).map(([percentile, value]) => (
+                    <div key={percentile} className="flex justify-between">
+                      <span>{percentile.toUpperCase()}:</span>
+                      <span className={parseFloat(value) >= 0 ? "text-green-600" : "text-red-600"}>
+                        {value}%
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
-          )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Final Equity Percentiles</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {Object.entries(results.percentiles.finalEquity).map(([percentile, value]) => (
+                    <div key={percentile} className="flex justify-between">
+                      <span>{percentile.toUpperCase()}:</span>
+                      <span>${parseInt(value).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Max Drawdown Percentiles</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {Object.entries(results.percentiles.drawdowns).map(([percentile, value]) => (
+                    <div key={percentile} className="flex justify-between">
+                      <span>{percentile.toUpperCase()}:</span>
+                      <span className="text-red-600">{value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Methodology and Interpretation Guide */}
       <Card>
         <CardHeader>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-between p-0 h-auto"
-            onClick={() => setExplanationOpen(!explanationOpen)}
-          >
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-6 w-6" />
-              Monte Carlo Methodology & Result Interpretation Guide
-            </CardTitle>
-            {explanationOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+          <CardTitle>Monte Carlo Methodology & Result Interpretation</CardTitle>
           <CardDescription>
-            Comprehensive guide to understanding Monte Carlo simulation methodology and interpreting results
+            Comprehensive guide to understanding Monte Carlo simulation and interpreting results
           </CardDescription>
         </CardHeader>
-        {explanationOpen && (
-          <CardContent className="space-y-6">
-            
+        <CardContent>
+          <div className="space-y-6">
             {/* What is Monte Carlo Simulation */}
             <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Info className="h-5 w-5" />
-                What is Monte Carlo Simulation?
-              </h3>
-              <div className="space-y-3 text-sm">
-                <p>
-                  <strong>Monte Carlo simulation</strong> is a computational technique that uses repeated random sampling to model the probability of different outcomes in a process that cannot easily be predicted due to the intervention of random variables.
-                </p>
-                <p>
-                  Named after the Monte Carlo Casino in Monaco, this method was developed by mathematicians working on nuclear weapons projects in the 1940s. Today, it's widely used in finance, engineering, science, and risk analysis.
-                </p>
-                <p>
-                  <strong>In our marble game context:</strong> Instead of running just one simulation, we run thousands of simulations with the same parameters to understand the full range of possible outcomes and their probabilities.
-                </p>
-              </div>
+              <h3 className="text-lg font-semibold mb-3">🎯 What is Monte Carlo Simulation?</h3>
+              <p className="text-gray-700 mb-3">
+                Monte Carlo simulation is a computational technique that uses repeated random sampling to model the probability 
+                of different outcomes in a process that cannot easily be predicted due to the intervention of random variables. 
+                Named after the Monte Carlo Casino in Monaco, this method was developed during World War II for nuclear weapons projects.
+              </p>
+              <p className="text-gray-700">
+                In trading and finance, Monte Carlo simulation helps us understand the range of possible outcomes for a trading 
+                strategy by running thousands of "what-if" scenarios with different random sequences of wins and losses.
+              </p>
             </div>
 
-            <Separator />
-
-            {/* How Our Monte Carlo Works */}
+            {/* How Our Simulation Works */}
             <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <HelpCircle className="h-5 w-5" />
-                How Our Monte Carlo Simulation Works
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <h4 className="font-medium">Step 1: Single Simulation Process</h4>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Start with your configured starting equity and risk percentage</li>
-                    <li>For each draw, generate a random number (0-1) using JavaScript's Math.random()</li>
-                    <li>Map the random number to a marble based on cumulative probabilities</li>
-                    <li>Apply the marble's R multiple to calculate the result</li>
-                    <li>Update equity and track statistics (wins, losses, drawdown)</li>
-                    <li>Repeat for the specified number of draws</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium">Step 2: Multiple Simulations</h4>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Repeat the single simulation process thousands of times</li>
-                    <li>Each simulation uses the same parameters but different random numbers</li>
-                    <li>Collect final results from each simulation (final equity, return %, max drawdown, etc.)</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium">Step 3: Statistical Analysis</h4>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Calculate mean, standard deviation, and percentiles of all results</li>
-                    <li>Create probability distributions and confidence intervals</li>
-                    <li>Generate visualizations to show the range of outcomes</li>
-                  </ul>
-                </div>
+              <h3 className="text-lg font-semibold mb-3">⚙️ How Our Simulation Works</h3>
+              <div className="space-y-3">
+                <p className="text-gray-700">
+                  <strong>Single Simulation Process:</strong>
+                </p>
+                <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
+                  <li>Start with your configured starting equity</li>
+                  <li>For each draw, generate a random number between 0 and 1</li>
+                  <li>Map this number to a marble based on configured probabilities</li>
+                  <li>Calculate risk amount as percentage of current equity</li>
+                  <li>Apply the marble's R multiple to determine gain/loss</li>
+                  <li>Update equity and track peak values for drawdown calculation</li>
+                  <li>Repeat for the specified number of draws</li>
+                  <li>Record final statistics (return, max drawdown, win rate, etc.)</li>
+                </ol>
+                <p className="text-gray-700">
+                  <strong>Multiple Simulation Analysis:</strong> This process is repeated thousands of times with different 
+                  random sequences, creating a distribution of possible outcomes that reveals the statistical properties 
+                  of your trading strategy.
+                </p>
               </div>
             </div>
-
-            <Separator />
 
             {/* Understanding the Results */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Understanding the Results</h3>
+              <h3 className="text-lg font-semibold mb-3">📊 Understanding the Results</h3>
               
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-blue-600">Summary Statistics</h4>
-                  <div className="ml-4 space-y-2 text-sm">
-                    <p><strong>Mean Return:</strong> The average return percentage across all simulations. This should converge toward your theoretical expectancy as the number of simulations increases.</p>
-                    <p><strong>Probability of Profit:</strong> The percentage of simulations that ended with a positive return. A 60% probability means 6 out of 10 times you'd expect to be profitable.</p>
-                    <p><strong>Return Volatility:</strong> The standard deviation of returns, measuring how much results vary. Higher volatility means more unpredictable outcomes.</p>
-                    <p><strong>Mean Max Drawdown:</strong> The average of the worst losing streaks across all simulations. Critical for understanding risk.</p>
-                  </div>
+                  <h4 className="font-medium text-gray-800">Summary Statistics:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Mean Return:</strong> Average return percentage across all simulations</li>
+                    <li><strong>Probability of Profit:</strong> Percentage of simulations that ended with positive returns</li>
+                    <li><strong>Return Volatility:</strong> Standard deviation of returns, measuring consistency</li>
+                    <li><strong>Mean Max Drawdown:</strong> Average of the worst peak-to-trough declines</li>
+                  </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-green-600">Confidence Intervals (Percentiles)</h4>
-                  <div className="ml-4 space-y-2 text-sm">
-                    <p><strong>5th Percentile:</strong> Only 5% of simulations performed worse than this. Represents near worst-case scenarios.</p>
-                    <p><strong>25th Percentile:</strong> 25% of simulations performed worse. Shows below-average outcomes.</p>
-                    <p><strong>50th Percentile (Median):</strong> Half of simulations performed better, half worse. Often more meaningful than the mean.</p>
-                    <p><strong>75th Percentile:</strong> 75% of simulations performed worse. Shows above-average outcomes.</p>
-                    <p><strong>90th & 95th Percentiles:</strong> Represent very good to excellent outcomes that happen 10% and 5% of the time respectively.</p>
-                  </div>
+                  <h4 className="font-medium text-gray-800">Confidence Intervals (Percentiles):</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>P5 (5th Percentile):</strong> Only 5% of outcomes were worse than this value</li>
+                    <li><strong>P50 (Median):</strong> Half of outcomes were above/below this value</li>
+                    <li><strong>P95 (95th Percentile):</strong> Only 5% of outcomes were better than this value</li>
+                    <li><strong>Interpretation:</strong> 90% of outcomes fall between P5 and P95</li>
+                  </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-purple-600">Return Distribution Histogram</h4>
-                  <div className="ml-4 space-y-2 text-sm">
-                    <p><strong>Shape Analysis:</strong></p>
-                    <ul className="list-disc list-inside ml-4">
-                      <li><strong>Normal Distribution:</strong> Bell-shaped curve indicates predictable, symmetric outcomes</li>
-                      <li><strong>Right Skewed:</strong> Long tail to the right means occasional very large gains</li>
-                      <li><strong>Left Skewed:</strong> Long tail to the left means occasional very large losses</li>
-                      <li><strong>Bimodal:</strong> Two peaks suggest the strategy has two distinct outcome modes</li>
-                    </ul>
-                    <p><strong>Frequency:</strong> Taller bars show more common outcomes. Look for where most results cluster.</p>
-                    <p><strong>Improved Tooltips:</strong> Hover over any bar to see the exact percentage range (e.g., "5.0% to 7.5%") and how many simulations fell within that range.</p>
-                  </div>
+                  <h4 className="font-medium text-gray-800">Distribution Analysis:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Normal Distribution:</strong> Bell-shaped curve indicates predictable, balanced outcomes</li>
+                    <li><strong>Right Skew:</strong> Long tail to the right suggests potential for large positive outliers</li>
+                    <li><strong>Left Skew:</strong> Long tail to the left indicates risk of large negative outliers</li>
+                    <li><strong>Multiple Peaks:</strong> May indicate different market regimes or strategy behaviors</li>
+                    <li><strong>Bucket Configuration:</strong> Adjust histogram buckets (5-50) to change granularity of distribution view</li>
+                  </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-orange-600">Equity Curve with Confidence Bands</h4>
-                  <div className="ml-4 space-y-2 text-sm">
-                    <p><strong>Average Line (Blue):</strong> Shows the expected equity progression over time. Should trend toward theoretical expectancy.</p>
-                    <p><strong>10th Percentile (Red Dashed):</strong> Shows how bad things could get 10% of the time. Critical for risk management.</p>
-                    <p><strong>90th Percentile (Green Dashed):</strong> Shows how good things could get 10% of the time. Represents optimistic scenarios.</p>
-                    <p><strong>Band Width:</strong> Wider bands indicate more uncertainty and volatility in outcomes.</p>
-                  </div>
+                  <h4 className="font-medium text-gray-800">Equity Curve Analysis:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Average Line:</strong> Expected equity progression over time</li>
+                    <li><strong>Confidence Bands:</strong> Show range of likely outcomes (10th to 90th percentile)</li>
+                    <li><strong>Band Width:</strong> Wider bands indicate higher uncertainty and volatility</li>
+                    <li><strong>Trend:</strong> Upward trend confirms positive expectancy</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-800">Scatterplot Analysis:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Risk-Return Relationship:</strong> Shows correlation between returns and drawdowns</li>
+                    <li><strong>Clustering Patterns:</strong> Tight clusters indicate consistent strategy behavior</li>
+                    <li><strong>Outliers:</strong> Extreme points reveal best and worst-case scenarios</li>
+                    <li><strong>Quadrant Analysis:</strong> Helps identify optimal risk-reward zones</li>
+                    <li><strong>Axis Formatting:</strong> Both axes show percentages without decimals for cleaner reading</li>
+                  </ul>
                 </div>
               </div>
             </div>
-
-            <Separator />
 
             {/* Practical Applications */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Practical Applications & Decision Making</h3>
+              <h3 className="text-lg font-semibold mb-3">🎯 Practical Applications & Decision Making</h3>
               
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-blue-600">Risk Assessment</h4>
-                  <div className="ml-4 space-y-2 text-sm">
-                    <p><strong>Worst-Case Planning:</strong> Use the 5th percentile to understand what could go wrong and plan accordingly.</p>
-                    <p><strong>Capital Requirements:</strong> Ensure you have enough capital to survive the worst drawdowns shown in the simulation.</p>
-                    <p><strong>Position Sizing:</strong> If the 5th percentile shows unacceptable losses, reduce your risk percentage.</p>
-                  </div>
+                  <h4 className="font-medium text-gray-800">Risk Assessment:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Worst-Case Planning:</strong> Use P5 values to prepare for bad scenarios</li>
+                    <li><strong>Capital Requirements:</strong> Ensure account size can handle P5 drawdown</li>
+                    <li><strong>Position Sizing:</strong> Adjust risk percentage based on drawdown tolerance</li>
+                  </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-green-600">Strategy Validation</h4>
-                  <div className="ml-4 space-y-2 text-sm">
-                    <p><strong>Consistency Check:</strong> Mean return should be close to theoretical expectancy. Large differences suggest issues.</p>
-                    <p><strong>Probability of Success:</strong> Strategies with &gt;60% probability of profit are generally considered robust.</p>
-                    <p><strong>Risk-Reward Balance:</strong> Compare potential gains (90th percentile) vs potential losses (10th percentile).</p>
-                  </div>
+                  <h4 className="font-medium text-gray-800">Strategy Validation:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Consistency Check:</strong> High probability of profit indicates robust strategy</li>
+                    <li><strong>Risk-Reward Balance:</strong> Compare mean return to mean max drawdown</li>
+                    <li><strong>Volatility Assessment:</strong> Lower volatility suggests more predictable outcomes</li>
+                  </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-purple-600">Comparing Strategies</h4>
-                  <div className="ml-4 space-y-2 text-sm">
-                    <p><strong>Higher Mean Return:</strong> Better average performance, but check volatility too.</p>
-                    <p><strong>Lower Volatility:</strong> More predictable outcomes, important for consistent results.</p>
-                    <p><strong>Better Worst-Case:</strong> Higher 5th percentile means less catastrophic risk.</p>
-                    <p><strong>Sharpe-like Ratio:</strong> Mean Return ÷ Volatility gives risk-adjusted performance measure.</p>
-                  </div>
+                  <h4 className="font-medium text-gray-800">Strategy Comparison:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Return vs Risk:</strong> Higher return with lower drawdown is preferable</li>
+                    <li><strong>Probability of Success:</strong> Strategies with &gt;60% probability of profit are generally considered robust</li>
+                    <li><strong>Consistency:</strong> Lower volatility indicates more reliable performance</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-800">Capital Planning:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Account Sizing:</strong> Account should be 3-5x the P95 max drawdown</li>
+                    <li><strong>Profit Targets:</strong> Use P75-P90 returns for realistic goal setting</li>
+                    <li><strong>Risk Limits:</strong> Set stop-loss rules based on historical drawdown patterns</li>
+                  </ul>
                 </div>
               </div>
             </div>
-
-            <Separator />
 
             {/* Limitations and Considerations */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Limitations and Considerations</h3>
-              <div className="space-y-3 text-sm">
+              <h3 className="text-lg font-semibold mb-3">⚠️ Limitations and Considerations</h3>
+              
+              <div className="space-y-3">
                 <div>
-                  <h4 className="font-medium text-red-600">Important Limitations</h4>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li><strong>Model Assumptions:</strong> Results are only as good as your marble configuration. Real markets may behave differently.</li>
-                    <li><strong>Independence Assumption:</strong> Each draw is independent. Real trading may have streaks or correlations.</li>
-                    <li><strong>Static Parameters:</strong> Risk percentage and probabilities remain constant, which may not reflect real trading.</li>
-                    <li><strong>No Market Conditions:</strong> Doesn't account for changing market volatility, trends, or external factors.</li>
+                  <h4 className="font-medium text-gray-800">Important Limitations:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Model Assumptions:</strong> Results assume marble probabilities remain constant</li>
+                    <li><strong>Independence:</strong> Each draw is assumed independent (no market regime changes)</li>
+                    <li><strong>Fixed Risk:</strong> Risk percentage stays constant regardless of market conditions</li>
+                    <li><strong>No Slippage/Costs:</strong> Real trading involves spreads, commissions, and slippage</li>
                   </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-yellow-600">Best Practices</h4>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li><strong>Run Enough Simulations:</strong> Use at least 1,000 simulations for reliable statistics, 10,000+ for high precision.</li>
-                    <li><strong>Conservative Estimates:</strong> Use slightly worse probabilities than you expect to build in a safety margin.</li>
-                    <li><strong>Stress Testing:</strong> Test with different market conditions and parameter variations.</li>
-                    <li><strong>Regular Updates:</strong> Re-run simulations as you gather more real trading data.</li>
+                  <h4 className="font-medium text-gray-800">Best Practices:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Large Sample Size:</strong> Use at least 1,000 simulations for reliable results</li>
+                    <li><strong>Conservative Estimates:</strong> Use slightly worse probabilities than historical data</li>
+                    <li><strong>Stress Testing:</strong> Test with different market conditions and parameters</li>
+                    <li><strong>Regular Updates:</strong> Recalibrate probabilities based on recent performance</li>
                   </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-green-600">When Monte Carlo is Most Valuable</h4>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li><strong>Strategy Development:</strong> Testing new trading approaches before risking real money.</li>
-                    <li><strong>Risk Management:</strong> Understanding the full range of possible outcomes.</li>
-                    <li><strong>Capital Planning:</strong> Determining appropriate account sizes and position sizing.</li>
-                    <li><strong>Expectation Setting:</strong> Understanding realistic timelines for achieving goals.</li>
+                  <h4 className="font-medium text-gray-800">When Monte Carlo is Most Valuable:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                    <li><strong>Strategy Development:</strong> Testing new approaches before live trading</li>
+                    <li><strong>Risk Management:</strong> Understanding potential drawdowns and volatility</li>
+                    <li><strong>Capital Allocation:</strong> Determining optimal position sizes and account requirements</li>
+                    <li><strong>Performance Evaluation:</strong> Comparing different trading strategies objectively</li>
                   </ul>
                 </div>
               </div>
             </div>
-
-            <Separator />
 
             {/* Example Interpretation */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Example Result Interpretation</h3>
-              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg">
-                <h4 className="font-medium mb-2">Sample Results:</h4>
-                <div className="text-sm space-y-1">
-                  <p>• Mean Return: +12.5%</p>
-                  <p>• Probability of Profit: 68%</p>
-                  <p>• 5th Percentile: -15.2%</p>
-                  <p>• 95th Percentile: +45.8%</p>
-                  <p>• Return Volatility: 18.3%</p>
-                </div>
-                
-                <h4 className="font-medium mt-3 mb-2">Interpretation:</h4>
-                <div className="text-sm space-y-1">
-                  <p><strong>Good Strategy:</strong> 68% chance of profit with +12.5% average return is solid.</p>
-                  <p><strong>Manageable Risk:</strong> Worst case (-15.2%) is acceptable if you can handle that loss.</p>
-                  <p><strong>Upside Potential:</strong> Best cases (+45.8%) show significant upside potential.</p>
-                  <p><strong>Moderate Volatility:</strong> 18.3% volatility means results will vary but not extremely.</p>
-                  <p><strong>Decision:</strong> This could be a viable strategy if the worst-case loss is acceptable.</p>
-                </div>
+              <h3 className="text-lg font-semibold mb-3">📋 Example Result Interpretation</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-gray-700 mb-3">
+                  <strong>Sample Results:</strong> Mean Return: +12.5%, Probability of Profit: 68%, 
+                  Return Volatility: 15.2%, Mean Max Drawdown: 8.3%
+                </p>
+                <p className="text-gray-700 mb-3">
+                  <strong>Interpretation:</strong>
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                  <li>Strategy shows positive expectancy with average 12.5% returns</li>
+                  <li>68% probability of profit indicates reasonably robust performance</li>
+                  <li>15.2% volatility suggests moderate consistency in returns</li>
+                  <li>8.3% average drawdown is manageable for most traders</li>
+                  <li>Account should be sized for at least 25-30% drawdown (3x average)</li>
+                  <li>Strategy appears viable but requires proper risk management</li>
+                </ul>
               </div>
             </div>
-
-          </CardContent>
-        )}
+          </div>
+        </CardContent>
       </Card>
     </div>
   )
