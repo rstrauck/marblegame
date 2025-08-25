@@ -1,12 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Play, RotateCcw, Dice6, TrendingUp } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Play, RotateCcw, Dice6, Plus, Edit, Trash2, Save, X, Download, Upload, FileText, AlertCircle } from 'lucide-react'
 
 const AdHocMarbleGame = () => {
   // Game configuration state
@@ -25,9 +27,223 @@ const AdHocMarbleGame = () => {
   const [riskPercentage, setRiskPercentage] = useState(10)
   const [numberOfDraws, setNumberOfDraws] = useState(10)
 
+  // Trading profiles state
+  const [profiles, setProfiles] = useState([])
+  const [selectedProfile, setSelectedProfile] = useState('')
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false)
+  const [editingProfile, setEditingProfile] = useState(null)
+  const [profileName, setProfileName] = useState('')
+
+  // Import/Export state
+  const [importMessage, setImportMessage] = useState('')
+  const [importError, setImportError] = useState('')
+  const fileInputRef = useRef(null)
+
   // Results state
   const [results, setResults] = useState(null)
   const [isRunning, setIsRunning] = useState(false)
+
+  // Load profiles from localStorage on component mount
+  useEffect(() => {
+    const savedProfiles = localStorage.getItem('marbleGameProfiles')
+    if (savedProfiles) {
+      try {
+        const parsedProfiles = JSON.parse(savedProfiles)
+        setProfiles(parsedProfiles)
+      } catch (error) {
+        console.error('Error loading profiles:', error)
+      }
+    }
+  }, [])
+
+  // Save profiles to localStorage whenever profiles change
+  useEffect(() => {
+    localStorage.setItem('marbleGameProfiles', JSON.stringify(profiles))
+  }, [profiles])
+
+  // Clear import messages after 5 seconds
+  useEffect(() => {
+    if (importMessage || importError) {
+      const timer = setTimeout(() => {
+        setImportMessage('')
+        setImportError('')
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [importMessage, importError])
+
+  // Export profiles to JSON file
+  const exportProfiles = () => {
+    if (profiles.length === 0) {
+      setImportError('No profiles to export')
+      return
+    }
+
+    try {
+      const exportData = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        profileCount: profiles.length,
+        profiles: profiles
+      }
+
+      const dataStr = JSON.stringify(exportData, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `marble-game-profiles-${new Date().toISOString().split('T')[0]}.json`
+      
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      URL.revokeObjectURL(url)
+      setImportMessage(`Successfully exported ${profiles.length} profiles`)
+    } catch (error) {
+      setImportError('Failed to export profiles: ' + error.message)
+    }
+  }
+
+  // Import profiles from JSON file
+  const importProfiles = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const importData = JSON.parse(e.target.result)
+        
+        // Validate import data structure
+        if (!importData.profiles || !Array.isArray(importData.profiles)) {
+          throw new Error('Invalid file format: missing profiles array')
+        }
+
+        // Validate each profile has required fields
+        const validProfiles = importData.profiles.filter(profile => {
+          return profile.id && profile.name && profile.marbles && 
+                 Array.isArray(profile.marbles) && profile.marbles.length === 7 &&
+                 typeof profile.startingEquity === 'number' &&
+                 typeof profile.riskPercentage === 'number' &&
+                 typeof profile.numberOfDraws === 'number'
+        })
+
+        if (validProfiles.length === 0) {
+          throw new Error('No valid profiles found in file')
+        }
+
+        // Check for duplicate profile names and handle conflicts
+        const existingNames = new Set(profiles.map(p => p.name))
+        const importedProfiles = validProfiles.map(profile => {
+          let finalName = profile.name
+          let counter = 1
+          
+          // Add suffix if name already exists
+          while (existingNames.has(finalName)) {
+            finalName = `${profile.name} (${counter})`
+            counter++
+          }
+          
+          return {
+            ...profile,
+            name: finalName,
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9), // Generate new ID
+            importedAt: new Date().toISOString()
+          }
+        })
+
+        // Merge with existing profiles
+        const updatedProfiles = [...profiles, ...importedProfiles]
+        setProfiles(updatedProfiles)
+        
+        setImportMessage(`Successfully imported ${importedProfiles.length} profiles`)
+        
+        if (validProfiles.length < importData.profiles.length) {
+          setImportError(`Warning: ${importData.profiles.length - validProfiles.length} profiles were skipped due to invalid format`)
+        }
+
+      } catch (error) {
+        setImportError('Failed to import profiles: ' + error.message)
+      }
+    }
+
+    reader.onerror = () => {
+      setImportError('Failed to read file')
+    }
+
+    reader.readAsText(file)
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Trigger file input
+  const triggerImport = () => {
+    fileInputRef.current?.click()
+  }
+
+  // Profile management functions
+  const saveProfile = () => {
+    if (!profileName.trim()) return
+
+    const newProfile = {
+      id: editingProfile?.id || Date.now().toString(),
+      name: profileName.trim(),
+      marbles: [...marbles],
+      startingEquity,
+      riskPercentage,
+      numberOfDraws,
+      createdAt: editingProfile?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    if (editingProfile) {
+      // Update existing profile
+      setProfiles(profiles.map(p => p.id === editingProfile.id ? newProfile : p))
+    } else {
+      // Add new profile
+      setProfiles([...profiles, newProfile])
+    }
+
+    // Close dialog and reset form
+    setIsProfileDialogOpen(false)
+    setEditingProfile(null)
+    setProfileName('')
+  }
+
+  const loadProfile = (profileId) => {
+    const profile = profiles.find(p => p.id === profileId)
+    if (profile) {
+      setMarbles([...profile.marbles])
+      setStartingEquity(profile.startingEquity)
+      setRiskPercentage(profile.riskPercentage)
+      setNumberOfDraws(profile.numberOfDraws)
+      setSelectedProfile(profileId)
+    }
+  }
+
+  const editProfile = (profile) => {
+    setEditingProfile(profile)
+    setProfileName(profile.name)
+    setIsProfileDialogOpen(true)
+  }
+
+  const deleteProfile = (profileId) => {
+    setProfiles(profiles.filter(p => p.id !== profileId))
+    if (selectedProfile === profileId) {
+      setSelectedProfile('')
+    }
+  }
+
+  const openNewProfileDialog = () => {
+    setEditingProfile(null)
+    setProfileName('')
+    setIsProfileDialogOpen(true)
+  }
 
   // Validation
   const totalProbability = marbles.reduce((sum, marble) => sum + marble.probability, 0)
@@ -46,51 +262,22 @@ const AdHocMarbleGame = () => {
     setMarbles(newMarbles)
   }
 
-  // Custom tooltip for equity chart showing R multiples
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length && results) {
-      const drawData = results.drawHistory[label - 1] // label is draw number (1-based)
-      return (
-        <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg">
-          <p className="text-white font-medium">Draw #{label}</p>
-          {drawData && (
-            <>
-              <p className="text-blue-300">
-                Marble: <span style={{ color: drawData.marbleColor }}>{drawData.marbleName}</span>
-              </p>
-              <p className={`font-medium ${drawData.rMultiple > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                R Multiple: {drawData.rMultiple > 0 ? '+' : ''}{drawData.rMultiple}R
-              </p>
-            </>
-          )}
-          {payload.map((entry, index) => (
-            <p key={index} style={{ color: entry.color }}>
-              Equity: ${entry.value.toLocaleString()}
-            </p>
-          ))}
-        </div>
-      )
-    }
-    return null
-  }
-
   // Run simulation
   const runSimulation = () => {
     if (!isValidConfig) return
 
     setIsRunning(true)
-    
-    // Simulate with a small delay for visual effect
+
+    // Simulate with a small delay for UI feedback
     setTimeout(() => {
-      const drawResults = []
-      const equityHistory = [startingEquity]
-      const drawHistory = []
       let currentEquity = startingEquity
       let totalRMultiples = 0
       let wins = 0
       let losses = 0
       let maxEquity = startingEquity
       let maxDrawdown = 0
+      const drawResults = []
+      const equityHistory = [{ draw: 0, equity: startingEquity }]
 
       // Create cumulative probability ranges
       const ranges = []
@@ -105,7 +292,7 @@ const AdHocMarbleGame = () => {
       })
 
       // Run draws
-      for (let i = 0; i < numberOfDraws; i++) {
+      for (let i = 1; i <= numberOfDraws; i++) {
         const random = Math.random()
         const selectedMarble = ranges.find(range => random >= range.start && random < range.end)
         
@@ -126,48 +313,27 @@ const AdHocMarbleGame = () => {
           maxDrawdown = currentDrawdown
         }
 
-        // Store draw result
+        const runningAvgR = totalRMultiples / i
+
+        // Add to equity history for chart
+        equityHistory.push({ draw: i, equity: currentEquity })
+
         drawResults.push({
-          draw: i + 1,
-          marble: selectedMarble,
-          riskAmount: riskAmount,
-          resultAmount: resultAmount,
-          equity: currentEquity,
-          runningAvgR: totalRMultiples / (i + 1)
-        })
-
-        // Store equity history
-        equityHistory.push(currentEquity)
-
-        // Store draw history for chart tooltip
-        drawHistory.push({
-          drawNumber: i + 1,
-          marbleName: selectedMarble.name,
-          marbleColor: selectedMarble.color,
-          rMultiple: selectedMarble.multiplier
-        })
-      }
-
-      // Prepare chart data
-      const chartData = []
-      for (let i = 0; i <= numberOfDraws; i++) {
-        chartData.push({
           draw: i,
-          Equity: equityHistory[i]
+          marble: selectedMarble,
+          riskAmount,
+          resultAmount,
+          equity: currentEquity,
+          runningAvgR
         })
       }
 
-      // Calculate final statistics
       const totalReturn = currentEquity - startingEquity
       const returnPercentage = (totalReturn / startingEquity) * 100
       const avgRMultiple = totalRMultiples / numberOfDraws
       const winRate = (wins / numberOfDraws) * 100
 
       setResults({
-        drawResults,
-        drawHistory,
-        chartData,
-        equityHistory,
         finalEquity: currentEquity,
         totalReturn,
         returnPercentage,
@@ -175,9 +341,11 @@ const AdHocMarbleGame = () => {
         winRate,
         maxDrawdown,
         wins,
-        losses
+        losses,
+        drawResults,
+        equityHistory
       })
-      
+
       setIsRunning(false)
     }, 500)
   }
@@ -187,30 +355,157 @@ const AdHocMarbleGame = () => {
     setResults(null)
   }
 
-  return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Dice6 className="h-6 w-6" />
-            Ad-Hoc Marble Game
-          </CardTitle>
-          <CardDescription>
-            Quick marble simulation - configure parameters and run simulation on the same page
-          </CardDescription>
-        </CardHeader>
-      </Card>
+  // Custom tooltip for equity curve
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload
+      const drawDetail = results?.drawResults.find(d => d.draw === label)
+      
+      return (
+        <div className="bg-white p-3 border rounded shadow-lg">
+          <p className="font-semibold">Draw #{label}</p>
+          <p className="text-blue-600">Equity: ${data.equity.toFixed(0)}</p>
+          {drawDetail && (
+            <>
+              <p className="text-gray-600">Marble: {drawDetail.marble.name}</p>
+              <p className={drawDetail.marble.multiplier > 0 ? "text-green-600" : "text-red-600"}>
+                R Multiple: {drawDetail.marble.multiplier > 0 ? '+' : ''}{drawDetail.marble.multiplier}R
+              </p>
+              <p className={drawDetail.resultAmount >= 0 ? "text-green-600" : "text-red-600"}>
+                Result: {drawDetail.resultAmount >= 0 ? '+' : ''}${drawDetail.resultAmount.toFixed(0)}
+              </p>
+            </>
+          )}
+        </div>
+      )
+    }
+    return null
+  }
 
+  return (
+    <div className="max-w-7xl mx-auto p-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Configuration Panel */}
         <div className="space-y-6">
+          {/* Trading Profiles Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Trading Profiles
+                <div className="flex gap-2">
+                  <Button onClick={triggerImport} size="sm" variant="outline" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import
+                  </Button>
+                  <Button onClick={exportProfiles} size="sm" variant="outline" className="flex items-center gap-2" disabled={profiles.length === 0}>
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                  <Button onClick={openNewProfileDialog} size="sm" className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    New
+                  </Button>
+                </div>
+              </CardTitle>
+              <CardDescription>Save, load, and backup different trading configurations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Import/Export Messages */}
+                {(importMessage || importError) && (
+                  <div className={`p-3 rounded-lg border ${importError ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                    <div className="flex items-center gap-2">
+                      {importError ? (
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-green-600" />
+                      )}
+                      <span className={`text-sm ${importError ? 'text-red-700' : 'text-green-700'}`}>
+                        {importError || importMessage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={importProfiles}
+                  style={{ display: 'none' }}
+                />
+
+                {profiles.length > 0 && (
+                  <div>
+                    <Label htmlFor="profileSelect">Select Profile</Label>
+                    <Select value={selectedProfile} onValueChange={loadProfile}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a trading profile..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {profiles.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Manage Profiles ({profiles.length} total)</Label>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {profiles.map((profile) => (
+                        <div key={profile.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium truncate block">{profile.name}</span>
+                            {profile.importedAt && (
+                              <span className="text-xs text-gray-500">Imported</span>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              onClick={() => editProfile(profile)}
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              onClick={() => deleteProfile(profile.id)}
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {profiles.length === 0 && (
+                  <div className="text-center py-4">
+                    <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-500 mb-2">No profiles saved yet</p>
+                    <p className="text-xs text-gray-400">Create your first profile or import existing ones</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Marble Configuration */}
           <Card>
             <CardHeader>
               <CardTitle>Marble Configuration</CardTitle>
-              <CardDescription>
-                Configure marble probabilities and R multiples (must sum to 100%)
-              </CardDescription>
+              <CardDescription>Configure marble probabilities and multipliers (must sum to 100%)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {marbles.map((marble, index) => (
@@ -385,40 +680,28 @@ const AdHocMarbleGame = () => {
                 </CardContent>
               </Card>
 
-              {/* Equity Chart */}
+              {/* Equity Curve */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Equity Curve with R Multiples
-                  </CardTitle>
-                  <CardDescription>
-                    Hover over points to see R multiples for each draw
-                  </CardDescription>
+                  <CardTitle>Equity Curve</CardTitle>
+                  <CardDescription>Hover over points to see draw details</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
+                  <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={results.chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis 
-                          dataKey="draw" 
-                          stroke="#9CA3AF"
-                          label={{ value: 'Draw Number', position: 'insideBottom', offset: -5 }}
-                        />
+                      <LineChart data={results.equityHistory}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="draw" />
                         <YAxis 
-                          stroke="#9CA3AF"
                           tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                          label={{ value: 'Equity ($)', angle: -90, position: 'insideLeft' }}
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Line 
                           type="monotone" 
-                          dataKey="Equity" 
+                          dataKey="equity" 
                           stroke="#3B82F6" 
                           strokeWidth={2}
-                          dot={{ fill: '#3B82F6', strokeWidth: 2, r: 3 }}
-                          activeDot={{ r: 5, stroke: '#3B82F6', strokeWidth: 2 }}
+                          dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -474,6 +757,52 @@ const AdHocMarbleGame = () => {
           )}
         </div>
       </div>
+
+      {/* Profile Dialog */}
+      <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingProfile ? 'Edit Profile' : 'Save New Profile'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingProfile 
+                ? 'Update the profile name and settings will be saved automatically.'
+                : 'Save your current marble configuration and game settings as a reusable profile.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="profileName">Profile Name</Label>
+              <Input
+                id="profileName"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Enter profile name..."
+              />
+            </div>
+            <div className="text-sm text-gray-600">
+              <p><strong>Current Settings:</strong></p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Starting Equity: ${startingEquity.toLocaleString()}</li>
+                <li>Risk per Draw: {riskPercentage}%</li>
+                <li>Number of Draws: {numberOfDraws}</li>
+                <li>Theoretical Expectancy: {theoreticalExpectancy > 0 ? '+' : ''}{theoreticalExpectancy.toFixed(3)}R</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProfileDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveProfile} disabled={!profileName.trim()}>
+              <Save className="h-4 w-4 mr-2" />
+              {editingProfile ? 'Update Profile' : 'Save Profile'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
