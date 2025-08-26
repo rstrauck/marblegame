@@ -1,10 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Plus, Edit, Trash2, Save, Download, Upload, FileText, AlertCircle } from 'lucide-react'
 
 const MonteCarloMarbleGame = () => {
   // Marble configuration state
@@ -23,12 +26,277 @@ const MonteCarloMarbleGame = () => {
   const [riskPercentage, setRiskPercentage] = useState(2)
   const [numberOfDraws, setNumberOfDraws] = useState(100)
   const [numberOfSimulations, setNumberOfSimulations] = useState(1000)
-  const [histogramBuckets, setHistogramBuckets] = useState(20) // New: configurable buckets
+  const [histogramBuckets, setHistogramBuckets] = useState(20)
+
+  // Trading profiles state
+  const [profiles, setProfiles] = useState([])
+  const [selectedProfile, setSelectedProfile] = useState('')
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false)
+  const [editingProfile, setEditingProfile] = useState(null)
+  const [profileName, setProfileName] = useState('')
+
+  // Loading state to prevent premature localStorage overwrites
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  // Import/Export state
+  const [importMessage, setImportMessage] = useState('')
+  const [importError, setImportError] = useState('')
+  const fileInputRef = useRef(null)
 
   // Simulation state
   const [isRunning, setIsRunning] = useState(false)
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState(null)
+
+  // Load profiles from localStorage on component mount
+  useEffect(() => {
+    console.log('🔄 Loading profiles from localStorage (Monte Carlo)...')
+    
+    try {
+      const savedProfiles = localStorage.getItem('marbleGameProfiles')
+      console.log('📦 Found in localStorage:', savedProfiles ? `${JSON.parse(savedProfiles).length} profiles` : 'null')
+      
+      if (savedProfiles) {
+        const parsedProfiles = JSON.parse(savedProfiles)
+        if (Array.isArray(parsedProfiles) && parsedProfiles.length > 0) {
+          setProfiles(parsedProfiles)
+          console.log('✅ Successfully loaded', parsedProfiles.length, 'profiles (Monte Carlo)')
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading profiles (Monte Carlo):', error)
+    } finally {
+      setIsLoaded(true)
+      console.log('🏁 Profile loading complete (Monte Carlo)')
+    }
+  }, [])
+
+  // Save profiles to localStorage whenever profiles change (but only after initial load)
+  useEffect(() => {
+    if (isLoaded) {
+      console.log('💾 Saving profiles to localStorage (Monte Carlo):', profiles.length, 'profiles')
+      try {
+        localStorage.setItem('marbleGameProfiles', JSON.stringify(profiles))
+        console.log('✅ Successfully saved profiles (Monte Carlo)')
+      } catch (error) {
+        console.error('❌ Error saving profiles (Monte Carlo):', error)
+      }
+    } else {
+      console.log('⏳ Skipping save - still loading initial data (Monte Carlo)')
+    }
+  }, [profiles, isLoaded])
+
+  // Clear import messages after 5 seconds
+  useEffect(() => {
+    if (importMessage || importError) {
+      const timer = setTimeout(() => {
+        setImportMessage('')
+        setImportError('')
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [importMessage, importError])
+
+  // Export profiles to JSON file
+  const exportProfiles = () => {
+    if (profiles.length === 0) {
+      setImportError('No profiles to export')
+      return
+    }
+
+    try {
+      const exportData = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        profileCount: profiles.length,
+        profiles: profiles
+      }
+
+      const dataStr = JSON.stringify(exportData, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `marble-game-profiles-${new Date().toISOString().split('T')[0]}.json`
+      
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      URL.revokeObjectURL(url)
+      setImportMessage(`Successfully exported ${profiles.length} profiles`)
+      console.log('📤 Exported', profiles.length, 'profiles (Monte Carlo)')
+    } catch (error) {
+      setImportError('Failed to export profiles: ' + error.message)
+      console.error('❌ Export error (Monte Carlo):', error)
+    }
+  }
+
+  // Import profiles from JSON file
+  const importProfiles = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    console.log('📥 Importing profiles from file (Monte Carlo):', file.name)
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const importData = JSON.parse(e.target.result)
+        
+        // Validate import data structure
+        if (!importData.profiles || !Array.isArray(importData.profiles)) {
+          throw new Error('Invalid file format: missing profiles array')
+        }
+
+        // Validate each profile has required fields
+        const validProfiles = importData.profiles.filter(profile => {
+          return profile.id && profile.name && profile.marbles && 
+                 Array.isArray(profile.marbles) && profile.marbles.length === 7 &&
+                 typeof profile.startingEquity === 'number' &&
+                 typeof profile.riskPercentage === 'number' &&
+                 typeof profile.numberOfDraws === 'number'
+        })
+
+        if (validProfiles.length === 0) {
+          throw new Error('No valid profiles found in file')
+        }
+
+        // Check for duplicate profile names and handle conflicts
+        const existingNames = new Set(profiles.map(p => p.name))
+        const importedProfiles = validProfiles.map(profile => {
+          let finalName = profile.name
+          let counter = 1
+          
+          // Add suffix if name already exists
+          while (existingNames.has(finalName)) {
+            finalName = `${profile.name} (${counter})`
+            counter++
+          }
+          
+          return {
+            ...profile,
+            name: finalName,
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9), // Generate new ID
+            importedAt: new Date().toISOString()
+          }
+        })
+
+        // Merge with existing profiles
+        const updatedProfiles = [...profiles, ...importedProfiles]
+        setProfiles(updatedProfiles)
+        
+        setImportMessage(`Successfully imported ${importedProfiles.length} profiles`)
+        console.log('✅ Imported', importedProfiles.length, 'profiles (Monte Carlo)')
+        
+        if (validProfiles.length < importData.profiles.length) {
+          setImportError(`Warning: ${importData.profiles.length - validProfiles.length} profiles were skipped due to invalid format`)
+        }
+
+      } catch (error) {
+        setImportError('Failed to import profiles: ' + error.message)
+        console.error('❌ Import error (Monte Carlo):', error)
+      }
+    }
+
+    reader.onerror = () => {
+      setImportError('Failed to read file')
+      console.error('❌ File read error (Monte Carlo)')
+    }
+
+    reader.readAsText(file)
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Trigger file input
+  const triggerImport = () => {
+    fileInputRef.current?.click()
+  }
+
+  // Profile management functions
+  const saveProfile = () => {
+    if (!profileName.trim()) return
+
+    // Convert marbles from Monte Carlo format to profile format
+    const profileMarbles = marbles.map(marble => ({
+      name: marble.name,
+      color: marble.color,
+      probability: marble.probability * 100, // Convert to percentage for profile
+      multiplier: marble.rMultiple
+    }))
+
+    const newProfile = {
+      id: editingProfile?.id || Date.now().toString(),
+      name: profileName.trim(),
+      marbles: profileMarbles,
+      startingEquity,
+      riskPercentage,
+      numberOfDraws,
+      createdAt: editingProfile?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    if (editingProfile) {
+      // Update existing profile
+      setProfiles(profiles.map(p => p.id === editingProfile.id ? newProfile : p))
+      console.log('✏️ Updated profile (Monte Carlo):', newProfile.name)
+    } else {
+      // Add new profile
+      setProfiles([...profiles, newProfile])
+      console.log('➕ Added new profile (Monte Carlo):', newProfile.name)
+    }
+
+    // Close dialog and reset form
+    setIsProfileDialogOpen(false)
+    setEditingProfile(null)
+    setProfileName('')
+  }
+
+  const loadProfile = (profileId) => {
+    const profile = profiles.find(p => p.id === profileId)
+    if (profile) {
+      // Convert marbles from profile format to Monte Carlo format
+      const monteCarloMarbles = profile.marbles.map(marble => ({
+        name: marble.name,
+        color: marble.color,
+        probability: marble.probability / 100, // Convert from percentage
+        rMultiple: marble.multiplier
+      }))
+
+      setMarbles(monteCarloMarbles)
+      setStartingEquity(profile.startingEquity)
+      setRiskPercentage(profile.riskPercentage)
+      setNumberOfDraws(profile.numberOfDraws)
+      setSelectedProfile(profileId)
+      console.log('📋 Loaded profile (Monte Carlo):', profile.name)
+    }
+  }
+
+  const editProfile = (profile) => {
+    setEditingProfile(profile)
+    setProfileName(profile.name)
+    setIsProfileDialogOpen(true)
+  }
+
+  const deleteProfile = (profileId) => {
+    const profileToDelete = profiles.find(p => p.id === profileId)
+    setProfiles(profiles.filter(p => p.id !== profileId))
+    if (selectedProfile === profileId) {
+      setSelectedProfile('')
+    }
+    console.log('🗑️ Deleted profile (Monte Carlo):', profileToDelete?.name)
+  }
+
+  const openNewProfileDialog = () => {
+    setEditingProfile(null)
+    setProfileName('')
+    setIsProfileDialogOpen(true)
+  }
 
   // Update marble configuration
   const updateMarble = (index, field, value) => {
@@ -303,6 +571,123 @@ const MonteCarloMarbleGame = () => {
     <div className="space-y-6">
       {/* Configuration Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Trading Profiles Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Trading Profiles
+              <div className="flex gap-2">
+                <Button onClick={triggerImport} size="sm" variant="outline" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Import
+                </Button>
+                <Button onClick={exportProfiles} size="sm" variant="outline" className="flex items-center gap-2" disabled={profiles.length === 0}>
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+                <Button onClick={openNewProfileDialog} size="sm" className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  New
+                </Button>
+              </div>
+            </CardTitle>
+            <CardDescription>
+              Save, load, and backup different trading configurations
+              {!isLoaded && <span className="text-orange-600"> (Loading...)</span>}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Import/Export Messages */}
+              {(importMessage || importError) && (
+                <div className={`p-3 rounded-lg border ${importError ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                  <div className="flex items-center gap-2">
+                    {importError ? (
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                    ) : (
+                      <FileText className="h-4 w-4 text-green-600" />
+                    )}
+                    <span className={`text-sm ${importError ? 'text-red-700' : 'text-green-700'}`}>
+                      {importError || importMessage}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={importProfiles}
+                style={{ display: 'none' }}
+              />
+
+              {profiles.length > 0 && (
+                <div>
+                  <Label htmlFor="profileSelect">Select Profile</Label>
+                  <Select value={selectedProfile} onValueChange={loadProfile}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a trading profile..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {profiles.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Manage Profiles ({profiles.length} total)</Label>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {profiles.map((profile) => (
+                      <div key={profile.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium truncate block">{profile.name}</span>
+                          {profile.importedAt && (
+                            <span className="text-xs text-gray-500">Imported</span>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            onClick={() => editProfile(profile)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => deleteProfile(profile.id)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profiles.length === 0 && isLoaded && (
+                <div className="text-center py-4">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm text-gray-500 mb-2">No profiles saved yet</p>
+                  <p className="text-xs text-gray-400">Create your first profile or import existing ones</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Marble Configuration */}
         <Card>
           <CardHeader>
@@ -359,94 +744,94 @@ const MonteCarloMarbleGame = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Game Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Simulation Settings</CardTitle>
-            <CardDescription>Configure the Monte Carlo simulation parameters</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="startingEquity">Starting Equity ($)</Label>
-                <Input
-                  id="startingEquity"
-                  type="number"
-                  value={startingEquity}
-                  onChange={(e) => setStartingEquity(parseInt(e.target.value) || 0)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="riskPercentage">Risk per Draw (%)</Label>
-                <Input
-                  id="riskPercentage"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="100"
-                  value={riskPercentage}
-                  onChange={(e) => setRiskPercentage(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="numberOfDraws">Number of Draws per Simulation</Label>
-                <Input
-                  id="numberOfDraws"
-                  type="number"
-                  min="10"
-                  max="1000"
-                  value={numberOfDraws}
-                  onChange={(e) => setNumberOfDraws(parseInt(e.target.value) || 0)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="numberOfSimulations">Number of Simulations</Label>
-                <Input
-                  id="numberOfSimulations"
-                  type="number"
-                  min="100"
-                  max="10000"
-                  value={numberOfSimulations}
-                  onChange={(e) => setNumberOfSimulations(parseInt(e.target.value) || 0)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="histogramBuckets">Histogram Buckets</Label>
-                <Input
-                  id="histogramBuckets"
-                  type="number"
-                  min="5"
-                  max="50"
-                  value={histogramBuckets}
-                  onChange={(e) => setHistogramBuckets(parseInt(e.target.value) || 20)}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Number of buckets for return distribution (5-50)
-                </p>
-              </div>
-              
-              {isRunning && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span>{progress.toFixed(1)}%</span>
-                  </div>
-                  <ProgressBar value={progress} />
-                </div>
-              )}
-              
-              <Button 
-                onClick={runMonteCarloSimulation}
-                disabled={!isValidConfig || isRunning}
-                className="w-full"
-              >
-                {isRunning ? 'Running Simulation...' : 'Start Monte Carlo Simulation'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Game Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Simulation Settings</CardTitle>
+          <CardDescription>Configure the Monte Carlo simulation parameters</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="startingEquity">Starting Equity ($)</Label>
+              <Input
+                id="startingEquity"
+                type="number"
+                value={startingEquity}
+                onChange={(e) => setStartingEquity(parseInt(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="riskPercentage">Risk per Draw (%)</Label>
+              <Input
+                id="riskPercentage"
+                type="number"
+                step="0.1"
+                min="0.1"
+                max="100"
+                value={riskPercentage}
+                onChange={(e) => setRiskPercentage(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="numberOfDraws">Number of Draws per Simulation</Label>
+              <Input
+                id="numberOfDraws"
+                type="number"
+                min="10"
+                max="1000"
+                value={numberOfDraws}
+                onChange={(e) => setNumberOfDraws(parseInt(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="numberOfSimulations">Number of Simulations</Label>
+              <Input
+                id="numberOfSimulations"
+                type="number"
+                min="100"
+                max="10000"
+                value={numberOfSimulations}
+                onChange={(e) => setNumberOfSimulations(parseInt(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="histogramBuckets">Histogram Buckets</Label>
+              <Input
+                id="histogramBuckets"
+                type="number"
+                min="5"
+                max="50"
+                value={histogramBuckets}
+                onChange={(e) => setHistogramBuckets(parseInt(e.target.value) || 20)}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Number of buckets for return distribution (5-50)
+              </p>
+            </div>
+          </div>
+          
+          {isRunning && (
+            <div className="space-y-2 mt-4">
+              <div className="flex justify-between text-sm">
+                <span>Progress</span>
+                <span>{progress.toFixed(1)}%</span>
+              </div>
+              <ProgressBar value={progress} />
+            </div>
+          )}
+          
+          <Button 
+            onClick={runMonteCarloSimulation}
+            disabled={!isValidConfig || isRunning}
+            className="w-full mt-4"
+          >
+            {isRunning ? 'Running Simulation...' : 'Start Monte Carlo Simulation'}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Results Section */}
       {results && (
@@ -877,6 +1262,55 @@ const MonteCarloMarbleGame = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Profile Dialog */}
+      <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingProfile ? 'Edit Profile' : 'Save New Profile'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingProfile 
+                ? 'Update the profile name and settings will be saved automatically.'
+                : 'Save your current marble configuration and game settings as a reusable profile.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="profileName">Profile Name</Label>
+              <Input
+                id="profileName"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Enter profile name..."
+              />
+            </div>
+            <div className="text-sm text-gray-600">
+              <p><strong>Current Settings:</strong></p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Starting Equity: ${startingEquity.toLocaleString()}</li>
+                <li>Risk per Draw: {riskPercentage}%</li>
+                <li>Number of Draws: {numberOfDraws}</li>
+                <li>Theoretical Expectancy: {theoreticalExpectancy > 0 ? '+' : ''}{theoreticalExpectancy.toFixed(3)}R</li>
+              </ul>
+              <p className="text-xs text-gray-500 mt-2">
+                Note: Number of Simulations and Histogram Buckets are not saved in profiles.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProfileDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveProfile} disabled={!profileName.trim()}>
+              <Save className="h-4 w-4 mr-2" />
+              {editingProfile ? 'Update Profile' : 'Save Profile'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

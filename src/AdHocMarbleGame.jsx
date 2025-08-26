@@ -34,6 +34,9 @@ const AdHocMarbleGame = () => {
   const [editingProfile, setEditingProfile] = useState(null)
   const [profileName, setProfileName] = useState('')
 
+  // Loading state to prevent premature localStorage overwrites
+  const [isLoaded, setIsLoaded] = useState(false)
+
   // Import/Export state
   const [importMessage, setImportMessage] = useState('')
   const [importError, setImportError] = useState('')
@@ -45,21 +48,42 @@ const AdHocMarbleGame = () => {
 
   // Load profiles from localStorage on component mount
   useEffect(() => {
-    const savedProfiles = localStorage.getItem('marbleGameProfiles')
-    if (savedProfiles) {
-      try {
+    console.log('🔄 Loading profiles from localStorage...')
+    
+    try {
+      const savedProfiles = localStorage.getItem('marbleGameProfiles')
+      console.log('📦 Found in localStorage:', savedProfiles ? `${JSON.parse(savedProfiles).length} profiles` : 'null')
+      
+      if (savedProfiles) {
         const parsedProfiles = JSON.parse(savedProfiles)
-        setProfiles(parsedProfiles)
-      } catch (error) {
-        console.error('Error loading profiles:', error)
+        if (Array.isArray(parsedProfiles) && parsedProfiles.length > 0) {
+          setProfiles(parsedProfiles)
+          console.log('✅ Successfully loaded', parsedProfiles.length, 'profiles')
+        }
       }
+    } catch (error) {
+      console.error('❌ Error loading profiles:', error)
+    } finally {
+      // Always mark as loaded, even if there were no profiles or an error
+      setIsLoaded(true)
+      console.log('🏁 Profile loading complete, ready to save changes')
     }
   }, [])
 
-  // Save profiles to localStorage whenever profiles change
+  // Save profiles to localStorage whenever profiles change (but only after initial load)
   useEffect(() => {
-    localStorage.setItem('marbleGameProfiles', JSON.stringify(profiles))
-  }, [profiles])
+    if (isLoaded) {
+      console.log('💾 Saving profiles to localStorage:', profiles.length, 'profiles')
+      try {
+        localStorage.setItem('marbleGameProfiles', JSON.stringify(profiles))
+        console.log('✅ Successfully saved profiles')
+      } catch (error) {
+        console.error('❌ Error saving profiles:', error)
+      }
+    } else {
+      console.log('⏳ Skipping save - still loading initial data')
+    }
+  }, [profiles, isLoaded])
 
   // Clear import messages after 5 seconds
   useEffect(() => {
@@ -101,8 +125,10 @@ const AdHocMarbleGame = () => {
       
       URL.revokeObjectURL(url)
       setImportMessage(`Successfully exported ${profiles.length} profiles`)
+      console.log('📤 Exported', profiles.length, 'profiles')
     } catch (error) {
       setImportError('Failed to export profiles: ' + error.message)
+      console.error('❌ Export error:', error)
     }
   }
 
@@ -110,6 +136,8 @@ const AdHocMarbleGame = () => {
   const importProfiles = (event) => {
     const file = event.target.files[0]
     if (!file) return
+
+    console.log('📥 Importing profiles from file:', file.name)
 
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -159,6 +187,7 @@ const AdHocMarbleGame = () => {
         setProfiles(updatedProfiles)
         
         setImportMessage(`Successfully imported ${importedProfiles.length} profiles`)
+        console.log('✅ Imported', importedProfiles.length, 'profiles')
         
         if (validProfiles.length < importData.profiles.length) {
           setImportError(`Warning: ${importData.profiles.length - validProfiles.length} profiles were skipped due to invalid format`)
@@ -166,11 +195,13 @@ const AdHocMarbleGame = () => {
 
       } catch (error) {
         setImportError('Failed to import profiles: ' + error.message)
+        console.error('❌ Import error:', error)
       }
     }
 
     reader.onerror = () => {
       setImportError('Failed to read file')
+      console.error('❌ File read error')
     }
 
     reader.readAsText(file)
@@ -204,9 +235,11 @@ const AdHocMarbleGame = () => {
     if (editingProfile) {
       // Update existing profile
       setProfiles(profiles.map(p => p.id === editingProfile.id ? newProfile : p))
+      console.log('✏️ Updated profile:', newProfile.name)
     } else {
       // Add new profile
       setProfiles([...profiles, newProfile])
+      console.log('➕ Added new profile:', newProfile.name)
     }
 
     // Close dialog and reset form
@@ -223,6 +256,7 @@ const AdHocMarbleGame = () => {
       setRiskPercentage(profile.riskPercentage)
       setNumberOfDraws(profile.numberOfDraws)
       setSelectedProfile(profileId)
+      console.log('📋 Loaded profile:', profile.name)
     }
   }
 
@@ -233,10 +267,12 @@ const AdHocMarbleGame = () => {
   }
 
   const deleteProfile = (profileId) => {
+    const profileToDelete = profiles.find(p => p.id === profileId)
     setProfiles(profiles.filter(p => p.id !== profileId))
     if (selectedProfile === profileId) {
       setSelectedProfile('')
     }
+    console.log('🗑️ Deleted profile:', profileToDelete?.name)
   }
 
   const openNewProfileDialog = () => {
@@ -407,7 +443,10 @@ const AdHocMarbleGame = () => {
                   </Button>
                 </div>
               </CardTitle>
-              <CardDescription>Save, load, and backup different trading configurations</CardDescription>
+              <CardDescription>
+                Save, load, and backup different trading configurations
+                {!isLoaded && <span className="text-orange-600"> (Loading...)</span>}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -490,7 +529,7 @@ const AdHocMarbleGame = () => {
                   </div>
                 )}
 
-                {profiles.length === 0 && (
+                {profiles.length === 0 && isLoaded && (
                   <div className="text-center py-4">
                     <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                     <p className="text-sm text-gray-500 mb-2">No profiles saved yet</p>
