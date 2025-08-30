@@ -1,11 +1,10 @@
 {
   "version": "1.0",
-  "exportDate": "2025-01-30T00:00:00.000Z",
-  "profileCount": 10,
-  "description": "10 Professional Trading System Profiles - Based on real trading strategy research and statistical analysis",
+  "exportDate": "2025-08-30T13:13:41.935Z",
+  "profileCount": 11,
   "profiles": [
     {
-      "id": "undisciplined_trader_001",
+      "id": "1756557961712e9lhx7x7b",
       "name": "Undisciplined Trader",
       "description": "Poor risk management with emotional decision making. High probability of large losses.",
       "marbles": [
@@ -57,10 +56,11 @@
       "numberOfDraws": 100,
       "expectancy": 0.45,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "professional_momentum_002",
+      "id": "1756557961712hklm1hf6r",
       "name": "Professional Momentum",
       "description": "Low win rate momentum system with high R multiples on winners. Strict stop losses.",
       "marbles": [
@@ -112,10 +112,11 @@
       "numberOfDraws": 150,
       "expectancy": 0.83,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "mean_reversion_master_003",
+      "id": "1756557961712w02h7gex5",
       "name": "Mean Reversion Master",
       "description": "High win rate system with small consistent profits and controlled losses.",
       "marbles": [
@@ -167,10 +168,11 @@
       "numberOfDraws": 200,
       "expectancy": 0.58,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "breakout_specialist_004",
+      "id": "1756557961712439jyp9bx",
       "name": "Breakout Specialist",
       "description": "Moderate win rate with variable R multiples. Focus on volatility expansion.",
       "marbles": [
@@ -222,10 +224,11 @@
       "numberOfDraws": 120,
       "expectancy": 0.76,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "conservative_swing_005",
+      "id": "17565579617122tcwcakxq",
       "name": "Conservative Swing",
       "description": "Balanced approach with good win rate and moderate R multiples. Excellent risk management.",
       "marbles": [
@@ -277,10 +280,11 @@
       "numberOfDraws": 180,
       "expectancy": 0.835,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "aggressive_scalper_006",
+      "id": "1756557961712bpyrvbpou",
       "name": "Aggressive Scalper",
       "description": "Very high win rate with small R multiples. Tight risk control and frequent trading.",
       "marbles": [
@@ -332,10 +336,11 @@
       "numberOfDraws": 300,
       "expectancy": 0.425,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "trend_following_pro_007",
+      "id": "1756557961712wdpmh9y8c",
       "name": "Trend Following Pro",
       "description": "Low win rate but exceptional R multiples on trends. Quick stops on failures.",
       "marbles": [
@@ -387,10 +392,11 @@
       "numberOfDraws": 100,
       "expectancy": 1.6,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "statistical_arbitrage_008",
+      "id": "1756557961712hpsw91kqw",
       "name": "Statistical Arbitrage",
       "description": "High win rate with small consistent profits. Rare but controlled losses.",
       "marbles": [
@@ -442,10 +448,11 @@
       "numberOfDraws": 500,
       "expectancy": 0.455,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "news_event_trader_009",
+      "id": "1756557961712nlwps6pvt",
       "name": "News/Event Trader",
       "description": "Moderate win rate with high volatility outcomes. Large winners and losers.",
       "marbles": [
@@ -497,10 +504,11 @@
       "numberOfDraws": 80,
       "expectancy": 1.15,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
     },
     {
-      "id": "novice_trader_010",
+      "id": "17565579617127jwffkc11",
       "name": "Novice Trader",
       "description": "Poor win rate with inconsistent R multiples. Emotional decision making and lack of discipline.",
       "marbles": [
@@ -552,8 +560,61 @@
       "numberOfDraws": 50,
       "expectancy": -1.06,
       "createdAt": "2025-01-30T00:00:00.000Z",
-      "updatedAt": "2025-01-30T00:00:00.000Z"
+      "updatedAt": "2025-01-30T00:00:00.000Z",
+      "importedAt": "2025-08-30T12:46:01.712Z"
+    },
+    {
+      "id": "1756557994087",
+      "name": "Income Alliance",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 21,
+          "multiplier": -1
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 19,
+          "multiplier": -0.5
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 18,
+          "multiplier": -0.1
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 30,
+          "multiplier": 0.5
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 6,
+          "multiplier": 1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 4,
+          "multiplier": 1.5
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 2,
+          "multiplier": 1.8
+        }
+      ],
+      "startingEquity": 100000,
+      "riskPercentage": 7,
+      "numberOfDraws": 263,
+      "createdAt": "2025-08-30T12:46:34.087Z",
+      "updatedAt": "2025-08-30T12:46:34.087Z"
     }
   ]
 }
-
