@@ -1,0 +1,559 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-01-30T00:00:00.000Z",
+  "profileCount": 10,
+  "description": "10 Professional Trading System Profiles - Based on real trading strategy research and statistical analysis",
+  "profiles": [
+    {
+      "id": "undisciplined_trader_001",
+      "name": "Undisciplined Trader",
+      "description": "Poor risk management with emotional decision making. High probability of large losses.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 20,
+          "multiplier": 1
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 15,
+          "multiplier": 3
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 10,
+          "multiplier": 4
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 7
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 25,
+          "multiplier": -1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 15,
+          "multiplier": -2
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 10,
+          "multiplier": -4
+        }
+      ],
+      "startingEquity": 10000,
+      "riskPercentage": 2,
+      "numberOfDraws": 100,
+      "expectancy": 0.45,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "professional_momentum_002",
+      "name": "Professional Momentum",
+      "description": "Low win rate momentum system with high R multiples on winners. Strict stop losses.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 10,
+          "multiplier": 2
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 15,
+          "multiplier": 4
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 10,
+          "multiplier": 5
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 8
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 35,
+          "multiplier": -1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 20,
+          "multiplier": -1
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 5,
+          "multiplier": -1
+        }
+      ],
+      "startingEquity": 25000,
+      "riskPercentage": 1.5,
+      "numberOfDraws": 150,
+      "expectancy": 0.83,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "mean_reversion_master_003",
+      "name": "Mean Reversion Master",
+      "description": "High win rate system with small consistent profits and controlled losses.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 40,
+          "multiplier": 1
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 25,
+          "multiplier": 1.5
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 10,
+          "multiplier": 2
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 3
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 15,
+          "multiplier": -1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 5,
+          "multiplier": -2
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 0,
+          "multiplier": -4
+        }
+      ],
+      "startingEquity": 15000,
+      "riskPercentage": 2.5,
+      "numberOfDraws": 200,
+      "expectancy": 0.58,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "breakout_specialist_004",
+      "name": "Breakout Specialist",
+      "description": "Moderate win rate with variable R multiples. Focus on volatility expansion.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 15,
+          "multiplier": 2
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 20,
+          "multiplier": 3
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 10,
+          "multiplier": 5
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 8
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 30,
+          "multiplier": -1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 15,
+          "multiplier": -1
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 5,
+          "multiplier": -2
+        }
+      ],
+      "startingEquity": 20000,
+      "riskPercentage": 1.8,
+      "numberOfDraws": 120,
+      "expectancy": 0.76,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "conservative_swing_005",
+      "name": "Conservative Swing",
+      "description": "Balanced approach with good win rate and moderate R multiples. Excellent risk management.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 25,
+          "multiplier": 2
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 20,
+          "multiplier": 2.5
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 10,
+          "multiplier": 3
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 4
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 25,
+          "multiplier": -1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 10,
+          "multiplier": -1
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 5,
+          "multiplier": -1
+        }
+      ],
+      "startingEquity": 30000,
+      "riskPercentage": 1.2,
+      "numberOfDraws": 180,
+      "expectancy": 0.835,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "aggressive_scalper_006",
+      "name": "Aggressive Scalper",
+      "description": "Very high win rate with small R multiples. Tight risk control and frequent trading.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 50,
+          "multiplier": 0.5
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 25,
+          "multiplier": 0.8
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 10,
+          "multiplier": 1
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 1.5
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 8,
+          "multiplier": -0.5
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 2,
+          "multiplier": -1
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 0,
+          "multiplier": -2
+        }
+      ],
+      "startingEquity": 5000,
+      "riskPercentage": 3,
+      "numberOfDraws": 300,
+      "expectancy": 0.425,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "trend_following_pro_007",
+      "name": "Trend Following Pro",
+      "description": "Low win rate but exceptional R multiples on trends. Quick stops on failures.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 8,
+          "multiplier": 3
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 12,
+          "multiplier": 5
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 8,
+          "multiplier": 8
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 2,
+          "multiplier": 15
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 40,
+          "multiplier": -1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 25,
+          "multiplier": -1
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 5,
+          "multiplier": -1
+        }
+      ],
+      "startingEquity": 50000,
+      "riskPercentage": 1,
+      "numberOfDraws": 100,
+      "expectancy": 1.6,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "statistical_arbitrage_008",
+      "name": "Statistical Arbitrage",
+      "description": "High win rate with small consistent profits. Rare but controlled losses.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 45,
+          "multiplier": 0.8
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 30,
+          "multiplier": 1
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 10,
+          "multiplier": 1.2
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 1.5
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 8,
+          "multiplier": -0.8
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 2,
+          "multiplier": -1.5
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 0,
+          "multiplier": -3
+        }
+      ],
+      "startingEquity": 100000,
+      "riskPercentage": 0.5,
+      "numberOfDraws": 500,
+      "expectancy": 0.455,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "news_event_trader_009",
+      "name": "News/Event Trader",
+      "description": "Moderate win rate with high volatility outcomes. Large winners and losers.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 15,
+          "multiplier": 2
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 20,
+          "multiplier": 4
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 15,
+          "multiplier": 6
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 12
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 20,
+          "multiplier": -2
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 15,
+          "multiplier": -3
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 10,
+          "multiplier": -5
+        }
+      ],
+      "startingEquity": 40000,
+      "riskPercentage": 1.5,
+      "numberOfDraws": 80,
+      "expectancy": 1.15,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    },
+    {
+      "id": "novice_trader_010",
+      "name": "Novice Trader",
+      "description": "Poor win rate with inconsistent R multiples. Emotional decision making and lack of discipline.",
+      "marbles": [
+        {
+          "name": "Blue",
+          "color": "#3B82F6",
+          "probability": 15,
+          "multiplier": 1
+        },
+        {
+          "name": "Green",
+          "color": "#10B981",
+          "probability": 10,
+          "multiplier": 2
+        },
+        {
+          "name": "Silver",
+          "color": "#6B7280",
+          "probability": 5,
+          "multiplier": 3
+        },
+        {
+          "name": "Pearl",
+          "color": "#F3F4F6",
+          "probability": 5,
+          "multiplier": 5
+        },
+        {
+          "name": "Orange",
+          "color": "#F97316",
+          "probability": 25,
+          "multiplier": -1
+        },
+        {
+          "name": "Red",
+          "color": "#EF4444",
+          "probability": 20,
+          "multiplier": -2
+        },
+        {
+          "name": "Black",
+          "color": "#1F2937",
+          "probability": 20,
+          "multiplier": -3
+        }
+      ],
+      "startingEquity": 5000,
+      "riskPercentage": 5,
+      "numberOfDraws": 50,
+      "expectancy": -1.06,
+      "createdAt": "2025-01-30T00:00:00.000Z",
+      "updatedAt": "2025-01-30T00:00:00.000Z"
+    }
+  ]
+}
+
